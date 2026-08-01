@@ -34,10 +34,29 @@ public struct NotiToast: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .notiSurface()
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isStaticText)
+    }
+}
+
+/// The toast's background surface: Liquid Glass where the OS has it, the previous
+/// material everywhere else.
+///
+/// Kept as one modifier so the choice lives in exactly one place rather than being
+/// spelled out at every call site that wants a toast-shaped surface.
+private extension View {
+    @ViewBuilder
+    func notiSurface() -> some View {
+        if #available(iOS 26.0, *) {
+            // Concentric corners track the display's own curvature, so a toast
+            // sitting near an edge stays visually parallel to it; the minimum keeps
+            // the pre-26 look wherever there is no container radius to match.
+            glassEffect(.regular, in: .rect(corners: .concentric(minimum: .fixed(12))))
+        } else {
+            background(.regularMaterial)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
     }
 }
 
