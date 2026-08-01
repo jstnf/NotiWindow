@@ -2275,6 +2275,10 @@ Verify all of:
 8. **Tap to dismiss** removes a toast; **swipe** toward its own edge removes it; a short drag springs back.
 9. **Disabled dismissal** — the "Tap and swipe are disabled" toast ignores both and only leaves on its own.
 10. **Indefinite** toast stays until stopped.
+11. **Edge dismissal is per-edge** — "Fill both edges for 30s", then "Dismiss the top toast": the top clears and **the bottom stays**. Then "Dismiss everything" clears both.
+12. **Environment access** — "Present via @Environment" actually shows a toast. This one needs care: the call is optional-chained, so if the environment value were nil the button would silently no-op and merely *look* dead. A toast must appear.
+13. **Replacement animates** — "Replace the bottom toast" shows the second toast sliding in, not snapping. This is what the `.id(presentation.token)` keying exists for.
+14. **Replacement mid-drag resets state** — start dragging a bottom toast partway (not far enough to dismiss), and while it is still offset, trigger a replacement. The incoming toast must appear at rest, not inheriting the outgoing toast's drag offset. This is the second half of what `.id()` fixes and has no unit test.
 
 - [ ] **Step 3: If passthrough (check 4) fails, apply the fallback**
 
@@ -2430,7 +2434,7 @@ Before declaring the library done, confirm every one of these:
 - [ ] `xcodebuild test -project Example/NotiWindowExample.xcodeproj -scheme NotiWindowExample -destination 'platform=iOS Simulator,name=iPhone 17'` passes the 6 app-hosted `NotiWindowHost` tests
 - [ ] No test reads source files or asserts on source text
 - [ ] No test calls `Task.sleep`, `Date()`, or otherwise waits on the clock
-- [ ] All ten runtime checks in Task 12 Step 2 observed, especially passthrough and over-a-sheet
+- [ ] All fourteen runtime checks in Task 12 Step 2 observed, especially passthrough, over-a-sheet, and the two replacement checks that no unit test covers
 - [ ] The package references nothing from iAniList
 - [ ] The public API matches the spec, with only the four documented deviations
 - [ ] The spec has been updated to match the four deviations, or each has been
