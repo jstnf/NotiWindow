@@ -118,4 +118,62 @@ struct NotiCenterSlotTests {
         #expect(presentation?.dismissOnTap == true)
         #expect(presentation?.dismissOnSwipe == true)
     }
+
+    @Test("A center with nothing on screen reports no content frames")
+    func noContentFramesWhenEmpty() {
+        let (center, _) = makeCenter()
+
+        #expect(center.contentFrames.isEmpty)
+    }
+
+    @Test("A reported frame is kept for its own edge")
+    func reportedFrameIsKeptForItsEdge() {
+        let (center, _) = makeCenter()
+        center.present(.bottom) { Text("bottom") }
+        let frame = CGRect(x: 0, y: 800, width: 402, height: 60)
+
+        center.setContentFrame(frame, for: .bottom)
+
+        #expect(center.contentFrames[.bottom] == frame)
+        #expect(center.contentFrames[.top] == nil)
+    }
+
+    @Test("Dismissing an edge forgets that edge's frame and keeps the other")
+    func dismissingAnEdgeForgetsOnlyItsFrame() {
+        let (center, _) = makeCenter()
+        center.present(.top) { Text("top") }
+        center.present(.bottom) { Text("bottom") }
+        let bottomFrame = CGRect(x: 0, y: 800, width: 402, height: 60)
+        center.setContentFrame(CGRect(x: 0, y: 60, width: 402, height: 60), for: .top)
+        center.setContentFrame(bottomFrame, for: .bottom)
+
+        center.dismiss(.top)
+
+        #expect(center.contentFrames[.top] == nil)
+        #expect(center.contentFrames[.bottom] == bottomFrame)
+    }
+
+    @Test("Dismissing by token forgets that toast's frame")
+    func dismissingByTokenForgetsItsFrame() {
+        let (center, _) = makeCenter()
+        let token = center.present(.bottom) { Text("bottom") }
+        center.setContentFrame(CGRect(x: 0, y: 800, width: 402, height: 60), for: .bottom)
+
+        center.dismiss(token)
+
+        #expect(center.contentFrames[.bottom] == nil)
+    }
+
+    @Test("Dismissing everything forgets every frame")
+    func dismissAllForgetsEveryFrame() {
+        let (center, _) = makeCenter()
+        center.present(.top) { Text("top") }
+        center.present(.bottom) { Text("bottom") }
+        center.setContentFrame(CGRect(x: 0, y: 60, width: 402, height: 60), for: .top)
+        center.setContentFrame(CGRect(x: 0, y: 800, width: 402, height: 60), for: .bottom)
+
+        center.dismissAll()
+
+        #expect(center.contentFrames.isEmpty)
+    }
 }

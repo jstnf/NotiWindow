@@ -3,16 +3,25 @@ import UIKit
 /// A window that is invisible to touches except where a toast actually is.
 ///
 /// Sits above the app's own window, so without this override it would swallow every
-/// touch in the app. Controls inside a toast keep working normally, because a hit on
-/// them resolves to a descendant rather than the backdrop.
+/// touch in the app. The live toasts' own frames define where "actually is" ends: the
+/// window asks the center that renders into it, and hands every touch outside those
+/// frames back to the app. Inside them the touch is delivered normally, which is what
+/// makes tap-to-dismiss, swipe-to-dismiss, and buttons inside a toast work.
 final class PassthroughWindow: UIWindow {
-    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
-        let hitView = super.hitTest(point, with: event)
+    /// The center whose live toast frames decide what this window absorbs.
+    ///
+    /// Weak because the center outlives the window; a window must never be the reason
+    /// a center stays alive. With no center the window absorbs nothing, which is the
+    /// harmless direction to fail in.
+    weak var notiCenter: NotiCenter?
 
-        if NotiHitTesting.passesThrough(hitView: hitView, rootView: rootViewController?.view) {
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        let contentFrames = notiCenter.map { Array($0.contentFrames.values) } ?? []
+
+        if NotiHitTesting.passesThrough(point: point, contentFrames: contentFrames) {
             return nil
         }
 
-        return hitView
+        return super.hitTest(point, with: event)
     }
 }

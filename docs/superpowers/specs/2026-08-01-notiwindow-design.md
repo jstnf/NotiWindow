@@ -188,12 +188,14 @@ The explicit seam beneath the modifier. Owns:
 
 ### Passthrough hit-testing
 
-`PassthroughWindow.hitTest` delegates to `super`, then consults a pure function:
+`PassthroughWindow.hitTest` consults a pure function against the frames of the
+toasts currently on screen, and delegates to `super` only when the touch is one of
+ours:
 
 ```swift
 enum NotiHitTesting {
-    static func passesThrough(hitView: UIView?, rootView: UIView?) -> Bool {
-        hitView == nil || rootView == nil || hitView === rootView
+    static func passesThrough(point: CGPoint, contentFrames: [CGRect]) -> Bool {
+        !contentFrames.contains { $0.contains(point) }
     }
 }
 ```
@@ -201,17 +203,23 @@ enum NotiHitTesting {
 When it returns true, `hitTest` returns `nil` and the touch falls through to the
 app's window.
 
-A nil root view passes through as well. A window with no root view has no content
-to hit, and `UIWindow.hitTest` returns the window itself for in-bounds points — so
-absorbing that touch would freeze the entire host app if the window were ever
-visible while unconfigured. Failing open here keeps the worst case aligned with the
-failure-behavior principle below: a toast that does not appear, never an app that
-stops responding.
+Each live toast reports its own global frame through `onGeometryChange`, and the
+center holds those frames in `contentFrames`, keyed by edge. Clearing a slot clears
+its frame with it, so a toast on its way out stops absorbing touches immediately
+rather than for the length of its exit animation.
 
-Identity-against-root is chosen over frame math deliberately. Frame comparison gets
-rounded corners, transforms, and in-flight transition geometry wrong, whereas "did we
-hit anything other than the transparent backdrop" is correct by construction.
-Interactive controls inside a toast work normally.
+Frame reporting is chosen over the identity check (`hitView === rootViewController?.view`)
+that this design originally specified, because that check does not work: SwiftUI
+draws a toast inside the hosting view itself rather than in a `UIView` of its own,
+so `super.hitTest` answers "the hosting view" for toast content and transparent
+backdrop alike. Runtime verification found the identity check treating every touch
+as backdrop — the window absorbed nothing, and tap-to-dismiss, swipe-to-dismiss, and
+buttons inside a toast were all inert while touches fell through to whatever sat
+underneath.
+
+An empty frame list passes everything through, which is also what a window with no
+center does. Failing open here keeps the worst case aligned with the failure-behavior
+principle below: a toast that is not interactive, never an app that stops responding.
 
 ### NotiRootView
 
@@ -296,8 +304,9 @@ Invariants are protected behaviorally through a seam, or as a pure function.
 - A replaced toast's expiry does not dismiss its replacement
 
 ### NotiHitTestingTests
-- `passesThrough` is true for `nil`, for the root view itself, and for a nil root view
-- `passesThrough` is false for any descendant view
+- `passesThrough` is false for a point inside a toast's frame, with one toast or two
+- `passesThrough` is true for a point outside every toast's frame
+- `passesThrough` is true for every point when no toast is on screen
 
 ### NotiWindowHostTests — hosted by the example app, not the package
 

@@ -63,6 +63,36 @@ struct NotiWindowHostTests {
         #expect(host.window.rootViewController == nil)
     }
 
+    @Test("A touch where no toast is falls through to the app")
+    func touchOutsideEveryToastFallsThrough() throws {
+        let center = NotiCenter()
+        let host = NotiWindowHost(scene: try activeScene(), center: center)
+        defer { host.tearDown() }
+        center.present(.bottom, duration: .indefinite) { Text("toast") }
+        center.setContentFrame(CGRect(x: 0, y: 800, width: 402, height: 60), for: .bottom)
+
+        #expect(host.window.hitTest(CGPoint(x: 200, y: 400), with: nil) == nil)
+    }
+
+    @Test("A touch on a toast is absorbed rather than passed through")
+    func touchOnAToastIsAbsorbed() throws {
+        let center = NotiCenter()
+        let host = NotiWindowHost(scene: try activeScene(), center: center)
+        defer { host.tearDown() }
+        center.present(.bottom, duration: .indefinite) { Text("toast") }
+        center.setContentFrame(CGRect(x: 0, y: 800, width: 402, height: 60), for: .bottom)
+
+        #expect(host.window.hitTest(CGPoint(x: 200, y: 830), with: nil) != nil)
+    }
+
+    @Test("With nothing on screen the window absorbs nothing")
+    func emptyWindowAbsorbsNothing() throws {
+        let host = NotiWindowHost(scene: try activeScene(), center: NotiCenter())
+        defer { host.tearDown() }
+
+        #expect(host.window.hitTest(CGPoint(x: 200, y: 830), with: nil) == nil)
+    }
+
     @Test("Teardown leaves live toasts in the center untouched")
     func tearDownPreservesCenterState() throws {
         let center = NotiCenter()

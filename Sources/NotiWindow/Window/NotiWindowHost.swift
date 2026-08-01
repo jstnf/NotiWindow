@@ -19,6 +19,7 @@ final class NotiWindowHost {
         controller.view.backgroundColor = .clear
 
         window = PassthroughWindow(windowScene: scene)
+        window.notiCenter = center
         window.rootViewController = controller
         window.backgroundColor = .clear
         // Above sheets and above system alerts — the reason this library exists.

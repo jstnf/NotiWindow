@@ -14,6 +14,14 @@ import SwiftUI
 public final class NotiCenter {
     private var slots: [NotiEdge: NotiPresentation] = [:]
 
+    /// Where each live toast currently is on screen, in window coordinates.
+    ///
+    /// Written by the window's root view as it lays each toast out, and read by
+    /// `PassthroughWindow` to decide which touches belong to a toast. Deliberately
+    /// unobserved: hit-testing reads it, and making it observable would invalidate
+    /// the very views that write it on every layout pass.
+    @ObservationIgnored private(set) var contentFrames: [NotiEdge: CGRect] = [:]
+
     @ObservationIgnored private let sleeper: NotiSleeper
 
     /// Expiry work, kept per edge so tests can await it. Tasks are never cancelled —
@@ -64,9 +72,17 @@ public final class NotiCenter {
         return presentation.token
     }
 
+    /// Record where `edge`'s toast has been laid out, in window coordinates.
+    ///
+    /// Called by the window's root view. A toast that has not reported a frame yet
+    /// simply is not interactive yet, which lasts a single layout pass.
+    func setContentFrame(_ frame: CGRect, for edge: NotiEdge) {
+        contentFrames[edge] = frame
+    }
+
     /// Clear whatever occupies `edge`.
     public func dismiss(_ edge: NotiEdge) {
-        slots[edge] = nil
+        clear(edge)
     }
 
     /// Clear the presentation identified by `token`.
@@ -75,13 +91,25 @@ public final class NotiCenter {
     /// dismissal cannot tear down an unrelated toast.
     public func dismiss(_ token: NotiToken) {
         for edge in NotiEdge.allCases where slots[edge]?.token == token {
-            slots[edge] = nil
+            clear(edge)
         }
     }
 
     /// Clear both edges.
     public func dismissAll() {
-        slots.removeAll()
+        for edge in NotiEdge.allCases {
+            clear(edge)
+        }
+    }
+
+    /// Empty one slot, forgetting where its toast was.
+    ///
+    /// The frame goes with the toast: a slot that is on its way out must stop
+    /// absorbing touches immediately, rather than for the length of its exit
+    /// animation.
+    private func clear(_ edge: NotiEdge) {
+        slots[edge] = nil
+        contentFrames[edge] = nil
     }
 
     /// Schedule auto-dismiss for a fixed-duration presentation.

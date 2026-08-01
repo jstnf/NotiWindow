@@ -34,6 +34,15 @@ struct NotiRootView: View {
                 NotiSlotView(presentation: presentation, center: center)
                     .id(presentation.token)
                     .transition(transition(for: edge))
+                    // The window absorbs touches by frame, so the toast has to say
+                    // where it landed. Nothing else in this window knows: SwiftUI
+                    // draws the toast inside the hosting view rather than in a
+                    // `UIView` the window could hit-test against.
+                    .onGeometryChange(for: CGRect.self) { proxy in
+                        proxy.frame(in: .global)
+                    } action: { frame in
+                        center.setContentFrame(frame, for: edge)
+                    }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

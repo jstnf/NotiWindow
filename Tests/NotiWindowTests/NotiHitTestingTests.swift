@@ -1,39 +1,37 @@
-import UIKit
+import CoreGraphics
 import Testing
 @testable import NotiWindow
 
 @Suite("NotiHitTesting")
-@MainActor
 struct NotiHitTestingTests {
-    @Test("A miss passes through")
-    func missPassesThrough() {
-        let root = UIView()
-        #expect(NotiHitTesting.passesThrough(hitView: nil, rootView: root))
+    private let toast = CGRect(x: 16, y: 700, width: 370, height: 60)
+
+    @Test("A point inside a toast does not pass through")
+    func insideAToastDoesNotPassThrough() {
+        #expect(NotiHitTesting.passesThrough(point: CGPoint(x: 200, y: 730), contentFrames: [toast]) == false)
     }
 
-    @Test("Hitting the transparent backdrop passes through")
-    func backdropPassesThrough() {
-        let root = UIView()
-        #expect(NotiHitTesting.passesThrough(hitView: root, rootView: root))
+    @Test("A point outside every toast passes through")
+    func outsideEveryToastPassesThrough() {
+        #expect(NotiHitTesting.passesThrough(point: CGPoint(x: 200, y: 400), contentFrames: [toast]))
     }
 
-    @Test("Hitting toast content does not pass through")
-    func contentDoesNotPassThrough() {
-        let root = UIView()
-        let toast = UIView()
-        root.addSubview(toast)
-
-        #expect(NotiHitTesting.passesThrough(hitView: toast, rootView: root) == false)
+    @Test("With no toasts on screen every point passes through")
+    func noToastsPassEverythingThrough() {
+        #expect(NotiHitTesting.passesThrough(point: CGPoint(x: 200, y: 730), contentFrames: []))
     }
 
-    @Test("A hit with no root view passes through rather than swallowing the touch")
-    func hitWithoutRootPassesThrough() {
-        let toast = UIView()
-        #expect(NotiHitTesting.passesThrough(hitView: toast, rootView: nil))
+    @Test("A point inside the second of two toasts does not pass through")
+    func insideTheSecondToastDoesNotPassThrough() {
+        let other = CGRect(x: 16, y: 60, width: 370, height: 60)
+
+        #expect(NotiHitTesting.passesThrough(point: CGPoint(x: 200, y: 90), contentFrames: [toast, other]) == false)
     }
 
-    @Test("A miss with no root view passes through")
-    func missWithoutRootPassesThrough() {
-        #expect(NotiHitTesting.passesThrough(hitView: nil, rootView: nil))
+    @Test("A point between two toasts passes through")
+    func betweenTwoToastsPassesThrough() {
+        let other = CGRect(x: 16, y: 60, width: 370, height: 60)
+
+        #expect(NotiHitTesting.passesThrough(point: CGPoint(x: 200, y: 400), contentFrames: [toast, other]))
     }
 }
