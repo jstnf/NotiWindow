@@ -17,7 +17,7 @@ iOS 18.6+. No dependencies.
 ## Install
 
 ```swift
-.package(url: "https://github.com/<owner>/NotiWindow", from: "1.0.0")
+.package(url: "https://github.com/jstnf/NotiWindow", from: "1.0.0")
 ```
 
 ## Use
