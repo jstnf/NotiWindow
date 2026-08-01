@@ -6,7 +6,9 @@ import SwiftUI
 /// and a bottom toast may be on screen at once; presenting again on an occupied edge
 /// replaces its occupant.
 ///
-/// The center owns state and timing but knows nothing about windows. A
+/// The center owns state and timing, and — because it is the one object the toast
+/// window and its root view already share — it also holds where each live toast is
+/// on screen, so the window can decide which touches belong to a toast. A
 /// `.notiWindow(center)` modifier renders whatever the center currently holds, which
 /// is why a toast presented before the window installs is not lost.
 @MainActor
@@ -72,11 +74,19 @@ public final class NotiCenter {
         return presentation.token
     }
 
-    /// Record where `edge`'s toast has been laid out, in window coordinates.
+    /// Record where the toast identified by `token` has been laid out, in window
+    /// coordinates.
     ///
     /// Called by the window's root view. A toast that has not reported a frame yet
     /// simply is not interactive yet, which lasts a single layout pass.
-    func setContentFrame(_ frame: CGRect, for edge: NotiEdge) {
+    ///
+    /// A token that no longer occupies a slot is ignored. A dismissed toast keeps
+    /// laying out for the length of its exit transition, and honouring those reports
+    /// would write its frame back in after `clear` dropped it — leaving a band that
+    /// absorbs touches with no toast under it, for good.
+    func setContentFrame(_ frame: CGRect, forToken token: NotiToken) {
+        guard let edge = NotiEdge.allCases.first(where: { slots[$0]?.token == token }) else { return }
+
         contentFrames[edge] = frame
     }
 

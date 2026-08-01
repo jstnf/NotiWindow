@@ -1,7 +1,7 @@
 # NotiWindow
 
-Toasts that render above everything — including sheets and system alerts — in a
-dedicated passthrough window, while the app underneath stays fully usable.
+Toasts that render above everything — including sheets — in a dedicated passthrough
+window, while the app underneath stays fully usable.
 
 ## Why
 

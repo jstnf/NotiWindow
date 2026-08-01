@@ -84,6 +84,20 @@ struct DemoScreen: View {
                             }
                         }
                     }
+
+                    // No `Spacer`, so this toast sizes to its content and leaves
+                    // visibly empty screen beside it. That empty screen is the only
+                    // place a "the absorbed rect is wider than the toast" bug shows.
+                    Button("Narrow toast (no spacer)") {
+                        center.present(.bottom, duration: .seconds(30)) {
+                            HStack(spacing: 8) {
+                                ProgressView()
+                                Text("Uploading…")
+                            }
+                            .padding()
+                            .background(.regularMaterial, in: Capsule())
+                        }
+                    }
                 }
 
                 Section("Environment access") {

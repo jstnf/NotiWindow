@@ -68,8 +68,8 @@ struct NotiWindowHostTests {
         let center = NotiCenter()
         let host = NotiWindowHost(scene: try activeScene(), center: center)
         defer { host.tearDown() }
-        center.present(.bottom, duration: .indefinite) { Text("toast") }
-        center.setContentFrame(CGRect(x: 0, y: 800, width: 402, height: 60), for: .bottom)
+        let token = center.present(.bottom, duration: .indefinite) { Text("toast") }
+        center.setContentFrame(CGRect(x: 0, y: 800, width: 402, height: 60), forToken: token)
 
         #expect(host.window.hitTest(CGPoint(x: 200, y: 400), with: nil) == nil)
     }
@@ -79,8 +79,8 @@ struct NotiWindowHostTests {
         let center = NotiCenter()
         let host = NotiWindowHost(scene: try activeScene(), center: center)
         defer { host.tearDown() }
-        center.present(.bottom, duration: .indefinite) { Text("toast") }
-        center.setContentFrame(CGRect(x: 0, y: 800, width: 402, height: 60), for: .bottom)
+        let token = center.present(.bottom, duration: .indefinite) { Text("toast") }
+        center.setContentFrame(CGRect(x: 0, y: 800, width: 402, height: 60), forToken: token)
 
         #expect(host.window.hitTest(CGPoint(x: 200, y: 830), with: nil) != nil)
     }

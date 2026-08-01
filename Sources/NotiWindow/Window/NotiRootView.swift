@@ -34,15 +34,6 @@ struct NotiRootView: View {
                 NotiSlotView(presentation: presentation, center: center)
                     .id(presentation.token)
                     .transition(transition(for: edge))
-                    // The window absorbs touches by frame, so the toast has to say
-                    // where it landed. Nothing else in this window knows: SwiftUI
-                    // draws the toast inside the hosting view rather than in a
-                    // `UIView` the window could hit-test against.
-                    .onGeometryChange(for: CGRect.self) { proxy in
-                        proxy.frame(in: .global)
-                    } action: { frame in
-                        center.setContentFrame(frame, for: edge)
-                    }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -69,6 +60,23 @@ struct NotiSlotView: View {
 
     var body: some View {
         presentation.content
+            // The window absorbs touches by frame, so the toast has to say where it
+            // landed. Nothing else in this window knows: SwiftUI draws the toast
+            // inside the hosting view rather than in a `UIView` the window could
+            // hit-test against.
+            //
+            // Measured here, on the content itself, rather than around the padding
+            // and the `maxWidth` frame below — those make a full-width row, and a
+            // toast that does not fill it would otherwise absorb touches over
+            // visibly empty screen beside it.
+            //
+            // `.global` already reflects the `.offset` below, so the absorbed rect
+            // follows a live drag rather than sitting at the resting position.
+            .onGeometryChange(for: CGRect.self) { proxy in
+                proxy.frame(in: .global)
+            } action: { frame in
+                center.setContentFrame(frame, forToken: presentation.token)
+            }
             .frame(maxWidth: 500)
             .padding(.horizontal, 16)
             .padding(presentation.edge == .top ? .top : .bottom, 8)
