@@ -10,14 +10,30 @@
 		E100000A00000000000000A1 /* NotiWindow in Frameworks */ = {isa = PBXBuildFile; productRef = E100000900000000000000A1 /* NotiWindow */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		E100001A00000000000000A1 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E100000100000000000000A1 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E100000700000000000000A1;
+			remoteInfo = NotiWindowExample;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		E100000200000000000000A1 /* NotiWindowExample.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NotiWindowExample.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		E100001400000000000000A1 /* NotiWindowExampleTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NotiWindowExampleTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		E100000300000000000000A1 /* NotiWindowExample */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = NotiWindowExample;
+			sourceTree = "<group>";
+		};
+		E100001500000000000000A1 /* NotiWindowExampleTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = NotiWindowExampleTests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -31,6 +47,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		E100001600000000000000A1 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -38,6 +61,7 @@
 			isa = PBXGroup;
 			children = (
 				E100000300000000000000A1 /* NotiWindowExample */,
+				E100001500000000000000A1 /* NotiWindowExampleTests */,
 				E100000600000000000000A1 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -46,6 +70,7 @@
 			isa = PBXGroup;
 			children = (
 				E100000200000000000000A1 /* NotiWindowExample.app */,
+				E100001400000000000000A1 /* NotiWindowExampleTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -74,6 +99,28 @@
 			productName = NotiWindowExample;
 			productReference = E100000200000000000000A1 /* NotiWindowExample.app */;
 			productType = "com.apple.product-type.application";
+		};
+		E100001800000000000000A1 /* NotiWindowExampleTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E100001B00000000000000A1 /* Build configuration list for PBXNativeTarget "NotiWindowExampleTests" */;
+			buildPhases = (
+				E100001700000000000000A1 /* Sources */,
+				E100001600000000000000A1 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				E100001900000000000000A1 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				E100001500000000000000A1 /* NotiWindowExampleTests */,
+			);
+			name = NotiWindowExampleTests;
+			packageProductDependencies = (
+			);
+			productName = NotiWindowExampleTests;
+			productReference = E100001400000000000000A1 /* NotiWindowExampleTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
 
@@ -107,6 +154,7 @@
 			projectRoot = "";
 			targets = (
 				E100000700000000000000A1 /* NotiWindowExample */,
+				E100001800000000000000A1 /* NotiWindowExampleTests */,
 			);
 		};
 /* End PBXProject section */
@@ -119,7 +167,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		E100001700000000000000A1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		E100001900000000000000A1 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E100000700000000000000A1 /* NotiWindowExample */;
+			targetProxy = E100001A00000000000000A1 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		E100001000000000000000A1 /* Debug */ = {
@@ -217,6 +280,40 @@
 			};
 			name = Release;
 		};
+		E100001C00000000000000A1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.justinf.NotiWindowExampleTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/NotiWindowExample.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/NotiWindowExample";
+			};
+			name = Debug;
+		};
+		E100001D00000000000000A1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.justinf.NotiWindowExampleTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/NotiWindowExample.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/NotiWindowExample";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -234,6 +331,15 @@
 			buildConfigurations = (
 				E100001000000000000000A1 /* Debug */,
 				E100001100000000000000A1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		E100001B00000000000000A1 /* Build configuration list for PBXNativeTarget "NotiWindowExampleTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E100001C00000000000000A1 /* Debug */,
+				E100001D00000000000000A1 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
