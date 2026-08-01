@@ -3,6 +3,10 @@
 Toasts that render above everything — including sheets — in a dedicated passthrough
 window, while the app underneath stays fully usable.
 
+<p align="center">
+  <img src=".github/demo.gif" alt="Two toasts on opposite edges, then a sheet opening underneath a toast that stays on top" width="300">
+</p>
+
 ## Why
 
 A toast built with `.overlay` lives inside the view hierarchy, so anything presented
@@ -99,26 +103,9 @@ argument will make and own one for you.
 - **One center per scene.** If your app presents multiple windows/scenes at once,
   give each its own `NotiCenter`; a center shared across scenes is not supported.
 
-## Develop
+## Contributing
 
-The package is iOS-only, so `swift build` / `swift test` cannot compile it — build
-through a simulator instead:
-
-```sh
-xcodebuild test -scheme NotiWindow -destination 'platform=iOS Simulator,name=iPhone 17'
-```
-
-`Example/NotiWindowExample.xcodeproj` holds the demo app and its own tests.
-
-Style is enforced by SwiftLint (`brew install swiftlint`), which is a developer tool
-rather than a package dependency — nothing propagates to consumers:
-
-```sh
-scripts/lint.sh        # report violations
-scripts/lint.sh --fix  # correct what can be corrected
-```
-
-CI runs the same script on every push and pull request.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for how to build, test, and lint the package.
 
 ## License
 
