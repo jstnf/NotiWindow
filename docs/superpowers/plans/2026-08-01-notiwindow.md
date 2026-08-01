@@ -1088,7 +1088,13 @@ struct NotiRootView: View {
                 .allowsHitTesting(false)
 
             if let presentation = center.presentation(for: edge) {
+                // The id is load-bearing. Without it, a same-edge replacement keeps
+                // the `if let` true, SwiftUI reuses the view instance, and neither the
+                // transition replays nor does `dragOffset` reset. Keying on the token
+                // makes each presentation a distinct view, so a replacement reads as a
+                // removal plus an insertion.
                 NotiSlotView(presentation: presentation, center: center)
+                    .id(presentation.token)
                     .transition(transition(for: edge))
             }
         }

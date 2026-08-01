@@ -222,7 +222,11 @@ Per slot it applies:
 - **Transition:** slide from that slot's own edge combined with opacity, collapsing
   to opacity-only when `\.accessibilityReduceMotion` is on. This is lifted from
   iAniList's current `ToastOverlay` so the library owns the behavior once rather than
-  each consuming app reimplementing it.
+  each consuming app reimplementing it. The slot view is keyed with
+  `.id(presentation.token)`: replacing a toast on an occupied edge leaves the slot
+  non-empty throughout, so without a per-presentation identity SwiftUI would reuse the
+  view instance, skip the transition entirely, and carry the outgoing toast's drag
+  offset into the incoming one.
 - **Gestures:** tap when `dismissOnTap`; drag toward the slot's own edge when
   `dismissOnSwipe` — dismissing once the drag exceeds 40 points in that direction,
   otherwise springing back. Drags away from the edge are ignored.
