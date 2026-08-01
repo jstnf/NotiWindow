@@ -85,9 +85,12 @@ called out here so a reviewer can catch them rather than discover them in a diff
 | `NotiCenterSlotTests.swift` | Slot occupancy and dismissal semantics. |
 | `NotiCenterTimingTests.swift` | Auto-dismiss, indefinite, replacement freshness. |
 | `NotiHitTestingTests.swift` | Passthrough decision truth table. |
-| `NotiWindowHostTests.swift` | Window level, key status, clear backgrounds. |
+(`NotiWindowHost` is covered from the example app's test target instead — see Task 11.
+The package's own bundle runs as the bare `xctest` tool with no `UIWindowScene`.)
 
-**Example (`Example/`)** — `NotiWindowExample.xcodeproj` plus a `NotiWindowExample/` source folder.
+**Example (`Example/`)** — `NotiWindowExample.xcodeproj`, a `NotiWindowExample/` source
+folder, and a `NotiWindowExampleTests/` folder holding the app-hosted
+`NotiWindowHostTests.swift`.
 
 ---
 
@@ -1180,7 +1183,6 @@ git commit -m "feat: render top and bottom toast slots"
 
 **Files:**
 - Create: `Sources/NotiWindow/Window/NotiWindowHost.swift`
-- Create: `Tests/NotiWindowTests/NotiWindowHostTests.swift`
 
 **Interfaces:**
 - Consumes: `PassthroughWindow`, `NotiRootView`, `NotiCenter`.
@@ -1190,86 +1192,20 @@ git commit -m "feat: render top and bottom toast slots"
   - `let window: PassthroughWindow`
   - `func tearDown()`
 
-- [ ] **Step 1: Write the failing test**
+**This task ships no unit tests, and that is a deliberate correction rather than an
+omission.** The original plan specified `Tests/NotiWindowTests/NotiWindowHostTests.swift`
+using `UIApplication.shared.connectedScenes` to obtain a `UIWindowScene`. That does not
+work: this package's tests run as the bare `xctest` command-line tool, where
+`UIApplication.shared.delegate` is nil and `connectedScenes` is empty. SwiftPM cannot
+declare a test host, so no scene is reachable from the package's own test target.
 
-Create `Tests/NotiWindowTests/NotiWindowHostTests.swift`:
+The host tests were therefore moved to the example app's test target, where a real
+`UIWindowScene` exists — see Task 11, which now builds that target and carries the tests.
+Do not attempt to unit-test `NotiWindowHost` from `Tests/NotiWindowTests/`.
 
-```swift
-import UIKit
-import Testing
-@testable import NotiWindow
+Your verification for this task is: it compiles, and the existing 29 tests still pass.
 
-@Suite("NotiWindowHost")
-@MainActor
-struct NotiWindowHostTests {
-    /// The scene the test runner's own window belongs to.
-    ///
-    /// The iOS test bundle runs inside a runner app, which always has a window
-    /// scene. `#require` therefore treats a nil scene as a genuine failure — these
-    /// tests cannot be meaningfully evaluated without one, and silently passing
-    /// would hide that the window was never configured.
-    private func activeScene() -> UIWindowScene? {
-        UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .first
-    }
-
-    @Test("The window sits above sheets and system alerts")
-    func windowSitsAboveAlerts() throws {
-        let scene = try #require(activeScene())
-        let host = NotiWindowHost(scene: scene, center: NotiCenter())
-        defer { host.tearDown() }
-
-        #expect(host.window.windowLevel == .alert + 1)
-    }
-
-    @Test("The window never becomes key")
-    func windowNeverBecomesKey() throws {
-        let scene = try #require(activeScene())
-        let host = NotiWindowHost(scene: scene, center: NotiCenter())
-        defer { host.tearDown() }
-
-        #expect(host.window.isKeyWindow == false)
-    }
-
-    @Test("The window is visible")
-    func windowIsVisible() throws {
-        let scene = try #require(activeScene())
-        let host = NotiWindowHost(scene: scene, center: NotiCenter())
-        defer { host.tearDown() }
-
-        #expect(host.window.isHidden == false)
-    }
-
-    @Test("Window and root view backgrounds are clear")
-    func backgroundsAreClear() throws {
-        let scene = try #require(activeScene())
-        let host = NotiWindowHost(scene: scene, center: NotiCenter())
-        defer { host.tearDown() }
-
-        #expect(host.window.backgroundColor == .clear)
-        #expect(host.window.rootViewController?.view.backgroundColor == .clear)
-    }
-
-    @Test("Tearing down hides the window and releases its content")
-    func tearDownHidesWindow() throws {
-        let scene = try #require(activeScene())
-        let host = NotiWindowHost(scene: scene, center: NotiCenter())
-
-        host.tearDown()
-
-        #expect(host.window.isHidden == true)
-        #expect(host.window.rootViewController == nil)
-    }
-}
-```
-
-- [ ] **Step 2: Run the test to verify it fails**
-
-Run: `xcodebuild test -scheme NotiWindow -destination 'platform=iOS Simulator,name=iPhone 17' -quiet`
-Expected: FAIL — `cannot find 'NotiWindowHost' in scope`.
-
-- [ ] **Step 3: Write the implementation**
+- [ ] **Step 1: Write the implementation**
 
 Create `Sources/NotiWindow/Window/NotiWindowHost.swift`:
 
@@ -1311,12 +1247,15 @@ final class NotiWindowHost {
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [ ] **Step 2: Verify it compiles and the suite still passes**
+
+Run: `xcodebuild build -scheme NotiWindow -destination 'platform=iOS Simulator,name=iPhone 17' -quiet`
+Expected: BUILD SUCCEEDED, no warnings.
 
 Run: `xcodebuild test -scheme NotiWindow -destination 'platform=iOS Simulator,name=iPhone 17' -quiet`
-Expected: PASS.
+Expected: PASS, 29 tests — unchanged from Task 7, since this task adds none.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 3: Commit**
 
 ```bash
 git add -A
@@ -1556,6 +1495,7 @@ An Xcode project is required because SPM cannot build an iOS `.app`.
 - Create: `Example/NotiWindowExample.xcodeproj/project.pbxproj`
 - Create: `Example/NotiWindowExample/NotiWindowExampleApp.swift`
 - Create: `Example/NotiWindowExample/DemoScreen.swift`
+- Create: `Example/NotiWindowExampleTests/NotiWindowHostTests.swift`
 
 **Interfaces:**
 - Consumes: the entire public API — `NotiCenter`, `NotiToast`, `.notiWindow(_:)`, `NotiEdge`, `NotiDuration`, `NotiToken`.
@@ -2019,6 +1959,274 @@ git add -A
 git commit -m "feat: add example app exercising the public API"
 ```
 
+
+The app is now committed and working on its own. The remaining steps add the example
+project's **unit-test target**, which is where `NotiWindowHost`'s tests live. They were
+moved here because the package's own test bundle runs as the bare `xctest` tool with no
+`UIWindowScene`; an app-hosted test target has a real one.
+
+Keeping these as separate steps after the app's commit is deliberate: if the test target
+proves intractable, the working example app already survives in git.
+
+- [ ] **Step 7: Add a unit-test target to the example project**
+
+Make four edits to `Example/NotiWindowExample.xcodeproj/project.pbxproj`. Each says
+exactly where it goes.
+
+**7a.** In the `PBXFileReference` section, after the `NotiWindowExample.app` line, add:
+
+```
+		E100001400000000000000A1 /* NotiWindowExampleTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NotiWindowExampleTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+```
+
+**7b.** In the `PBXFileSystemSynchronizedRootGroup` section, after the existing
+`NotiWindowExample` group, add:
+
+```
+		E100001500000000000000A1 /* NotiWindowExampleTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = NotiWindowExampleTests;
+			sourceTree = "<group>";
+		};
+```
+
+**7c.** Add the target's build phases, the target itself, its dependency, its
+configurations, and register it. Concretely:
+
+- In `PBXFrameworksBuildPhase`, add a second phase `E100001600000000000000A1` with an
+  empty `files` list.
+- In `PBXSourcesBuildPhase`, add a second phase `E100001700000000000000A1` with an
+  empty `files` list.
+- Add a `PBXContainerItemProxy` section (the app project has none yet) and a
+  `PBXTargetDependency` section:
+
+```
+/* Begin PBXContainerItemProxy section */
+		E100001A00000000000000A1 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E100000100000000000000A1 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E100000700000000000000A1;
+			remoteInfo = NotiWindowExample;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXTargetDependency section */
+		E100001900000000000000A1 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E100000700000000000000A1 /* NotiWindowExample */;
+			targetProxy = E100001A00000000000000A1 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+```
+
+- In `PBXNativeTarget`, add:
+
+```
+		E100001800000000000000A1 /* NotiWindowExampleTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E100001B00000000000000A1 /* Build configuration list for PBXNativeTarget "NotiWindowExampleTests" */;
+			buildPhases = (
+				E100001700000000000000A1 /* Sources */,
+				E100001600000000000000A1 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				E100001900000000000000A1 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				E100001500000000000000A1 /* NotiWindowExampleTests */,
+			);
+			name = NotiWindowExampleTests;
+			packageProductDependencies = (
+			);
+			productName = NotiWindowExampleTests;
+			productReference = E100001400000000000000A1 /* NotiWindowExampleTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+```
+
+- In `XCBuildConfiguration`, add the test target's two configurations:
+
+```
+		E100001C00000000000000A1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.justinf.NotiWindowExampleTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/NotiWindowExample.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/NotiWindowExample";
+			};
+			name = Debug;
+		};
+		E100001D00000000000000A1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.justinf.NotiWindowExampleTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/NotiWindowExample.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/NotiWindowExample";
+			};
+			name = Release;
+		};
+```
+
+- In `XCConfigurationList`, add:
+
+```
+		E100001B00000000000000A1 /* Build configuration list for PBXNativeTarget "NotiWindowExampleTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E100001C00000000000000A1 /* Debug */,
+				E100001D00000000000000A1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+```
+
+**7d.** Register the target and its product. In the `PBXProject` object's `targets`
+list, add `E100001800000000000000A1 /* NotiWindowExampleTests */,` after the app target.
+In the `Products` group's `children`, add
+`E100001400000000000000A1 /* NotiWindowExampleTests.xctest */,`. In the `mainGroup`'s
+children, add `E100001500000000000000A1 /* NotiWindowExampleTests */,` after the
+existing `NotiWindowExample` group.
+
+- [ ] **Step 8: Write the host tests**
+
+Create `Example/NotiWindowExampleTests/NotiWindowHostTests.swift`:
+
+```swift
+import SwiftUI
+import Testing
+import UIKit
+@testable import NotiWindow
+
+/// Window-configuration tests, hosted by the example app.
+///
+/// These live here rather than in the package's own test bundle because that bundle
+/// runs as the bare `xctest` tool, where `UIApplication.shared.connectedScenes` is
+/// empty. An app-hosted test target has a real `UIWindowScene`, which is what
+/// `NotiWindowHost` requires.
+@Suite("NotiWindowHost")
+@MainActor
+struct NotiWindowHostTests {
+    /// The runner app's window scene. A nil scene is a genuine failure here — the
+    /// whole point of hosting these tests in the app is that one exists.
+    private func activeScene() throws -> UIWindowScene {
+        try #require(
+            UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+        )
+    }
+
+    @Test("The window sits above sheets and system alerts")
+    func windowSitsAboveAlerts() throws {
+        let host = NotiWindowHost(scene: try activeScene(), center: NotiCenter())
+        defer { host.tearDown() }
+
+        #expect(host.window.windowLevel == .alert + 1)
+    }
+
+    @Test("The window never becomes key")
+    func windowNeverBecomesKey() throws {
+        let host = NotiWindowHost(scene: try activeScene(), center: NotiCenter())
+        defer { host.tearDown() }
+
+        #expect(host.window.isKeyWindow == false)
+    }
+
+    @Test("The window is visible")
+    func windowIsVisible() throws {
+        let host = NotiWindowHost(scene: try activeScene(), center: NotiCenter())
+        defer { host.tearDown() }
+
+        #expect(host.window.isHidden == false)
+    }
+
+    @Test("Window and root view backgrounds are clear")
+    func backgroundsAreClear() throws {
+        let host = NotiWindowHost(scene: try activeScene(), center: NotiCenter())
+        defer { host.tearDown() }
+
+        #expect(host.window.backgroundColor == .clear)
+        #expect(host.window.rootViewController?.view.backgroundColor == .clear)
+    }
+
+    @Test("Tearing down hides the window and releases its content")
+    func tearDownHidesWindow() throws {
+        let host = NotiWindowHost(scene: try activeScene(), center: NotiCenter())
+
+        host.tearDown()
+
+        #expect(host.window.isHidden == true)
+        #expect(host.window.rootViewController == nil)
+    }
+
+    @Test("Teardown leaves live toasts in the center untouched")
+    func tearDownPreservesCenterState() throws {
+        let center = NotiCenter()
+        let host = NotiWindowHost(scene: try activeScene(), center: center)
+        let token = center.present(.top, duration: .indefinite) { Text("live") }
+
+        host.tearDown()
+
+        #expect(center.presentation(for: .top)?.token == token)
+    }
+}
+```
+
+Note the last test: it pins the documented rule that teardown touches no `NotiCenter`
+state, so a rebuilt scene re-renders whatever is still live.
+
+- [ ] **Step 9: Run the example app's tests**
+
+```bash
+cd /Users/justin/dev/ios/NotiWindow/Example
+xcodebuild test -project NotiWindowExample.xcodeproj -scheme NotiWindowExample \
+  -destination 'platform=iOS Simulator,name=iPhone 17' -quiet
+```
+
+Expected: 6 tests pass. `connectedScenes` must be non-empty here — that is the whole
+reason these tests live in this target.
+
+**If `@testable import NotiWindow` fails to resolve**, the test bundle cannot see the
+package module. Add the package product to the test target: create an
+`XCSwiftPackageProductDependency` `E100001E00000000000000A1` with `productName = NotiWindow`,
+reference it from the test target's `packageProductDependencies`, and add a matching
+`PBXBuildFile` `E100001F00000000000000A1` to the test target's Frameworks phase. Try
+without this first — with `TEST_HOST`/`BUNDLE_LOADER` set, the module is usually already
+importable from the build products directory, and linking it twice can produce duplicate-
+symbol warnings.
+
+**If the project will not load or the target will not build after hand-editing**, stop
+editing the pbxproj and add the target through Xcode instead: open
+`Example/NotiWindowExample.xcodeproj`, File ▸ New ▸ Target ▸ iOS ▸ Unit Testing Bundle,
+name it `NotiWindowExampleTests`, set "Target to be Tested" to `NotiWindowExample`, then
+delete the generated boilerplate test file and keep the file written in Step 8. Re-run
+the command above. Report that you used the GUI fallback.
+
+- [ ] **Step 10: Commit the test target**
+
+```bash
+git add -A
+git commit -m "test: add app-hosted NotiWindowHost tests"
+```
+
 ---
 
 ### Task 12: Runtime verification and README
@@ -2219,6 +2427,7 @@ Before declaring the library done, confirm every one of these:
 
 - [ ] `xcodebuild test -scheme NotiWindow -destination 'platform=iOS Simulator,name=iPhone 17'` passes from the repository root
 - [ ] `xcodebuild build -project Example/NotiWindowExample.xcodeproj -scheme NotiWindowExample -destination 'platform=iOS Simulator,name=iPhone 17'` succeeds
+- [ ] `xcodebuild test -project Example/NotiWindowExample.xcodeproj -scheme NotiWindowExample -destination 'platform=iOS Simulator,name=iPhone 17'` passes the 6 app-hosted `NotiWindowHost` tests
 - [ ] No test reads source files or asserts on source text
 - [ ] No test calls `Task.sleep`, `Date()`, or otherwise waits on the clock
 - [ ] All ten runtime checks in Task 12 Step 2 observed, especially passthrough and over-a-sheet

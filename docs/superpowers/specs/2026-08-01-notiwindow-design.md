@@ -296,13 +296,23 @@ Invariants are protected behaviorally through a seam, or as a pure function.
 - A replaced toast's expiry does not dismiss its replacement
 
 ### NotiHitTestingTests
-- `passesThrough` is true for `nil` and for the root view itself
+- `passesThrough` is true for `nil`, for the root view itself, and for a nil root view
 - `passesThrough` is false for any descendant view
 
-### NotiWindowHostTests
-- A host constructed against a simulator scene produces a window at `.alert + 1`
+### NotiWindowHostTests — hosted by the example app, not the package
+
+The package's own test bundle cannot cover `NotiWindowHost`. It runs as the bare
+`xctest` command-line tool, where `UIApplication.shared.delegate` is nil and
+`connectedScenes` is empty, and SwiftPM offers no way to declare a test host. These
+tests therefore live in `Example/NotiWindowExampleTests/`, run by the example app's
+unit-test target, which has a real `UIWindowScene`.
+
+- A host constructed against a real scene produces a window at `.alert + 1`
 - The window is not key
+- The window is visible
 - The window and hosting controller backgrounds are clear
+- Teardown hides the window and releases its root view controller
+- Teardown leaves live toasts in the center untouched
 
 ## Example app
 
