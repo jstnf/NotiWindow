@@ -193,13 +193,20 @@ The explicit seam beneath the modifier. Owns:
 ```swift
 enum NotiHitTesting {
     static func passesThrough(hitView: UIView?, rootView: UIView?) -> Bool {
-        hitView == nil || hitView === rootView
+        hitView == nil || rootView == nil || hitView === rootView
     }
 }
 ```
 
 When it returns true, `hitTest` returns `nil` and the touch falls through to the
 app's window.
+
+A nil root view passes through as well. A window with no root view has no content
+to hit, and `UIWindow.hitTest` returns the window itself for in-bounds points — so
+absorbing that touch would freeze the entire host app if the window were ever
+visible while unconfigured. Failing open here keeps the worst case aligned with the
+failure-behavior principle below: a toast that does not appear, never an app that
+stops responding.
 
 Identity-against-root is chosen over frame math deliberately. Frame comparison gets
 rounded corners, transforms, and in-flight transition geometry wrong, whereas "did we

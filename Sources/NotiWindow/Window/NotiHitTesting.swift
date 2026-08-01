@@ -9,7 +9,11 @@ enum NotiHitTesting {
     /// frames: frame math gets rounded corners, transforms, and in-flight transition
     /// geometry wrong, whereas "did we hit anything other than the transparent
     /// backdrop" is correct by construction.
+    ///
+    /// A window with no root view has no content to hit, so it must never absorb
+    /// a touch. Failing open degrades to "the toast does not appear" rather than
+    /// "the app stops responding".
     static func passesThrough(hitView: UIView?, rootView: UIView?) -> Bool {
-        hitView == nil || hitView === rootView
+        hitView == nil || rootView == nil || hitView === rootView
     }
 }

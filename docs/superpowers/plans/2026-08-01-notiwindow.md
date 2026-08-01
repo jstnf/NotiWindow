@@ -955,10 +955,10 @@ struct NotiHitTestingTests {
         #expect(NotiHitTesting.passesThrough(hitView: toast, rootView: root) == false)
     }
 
-    @Test("A hit with no root view still does not pass through")
-    func hitWithoutRootDoesNotPassThrough() {
+    @Test("A hit with no root view passes through rather than swallowing the touch")
+    func hitWithoutRootPassesThrough() {
         let toast = UIView()
-        #expect(NotiHitTesting.passesThrough(hitView: toast, rootView: nil) == false)
+        #expect(NotiHitTesting.passesThrough(hitView: toast, rootView: nil))
     }
 
     @Test("A miss with no root view passes through")
@@ -989,8 +989,14 @@ enum NotiHitTesting {
     /// frames: frame math gets rounded corners, transforms, and in-flight transition
     /// geometry wrong, whereas "did we hit anything other than the transparent
     /// backdrop" is correct by construction.
+    ///
+    /// A nil root view also passes through. A window with no root view has no content
+    /// to hit, so it must never absorb a touch — `UIWindow.hitTest` returns the window
+    /// itself for in-bounds points, which would otherwise freeze the whole host app if
+    /// the window were ever visible while unconfigured. Failing open degrades to "the
+    /// toast does not appear" rather than "the app stops responding."
     static func passesThrough(hitView: UIView?, rootView: UIView?) -> Bool {
-        hitView == nil || hitView === rootView
+        hitView == nil || rootView == nil || hitView === rootView
     }
 }
 ```

@@ -26,10 +26,10 @@ struct NotiHitTestingTests {
         #expect(NotiHitTesting.passesThrough(hitView: toast, rootView: root) == false)
     }
 
-    @Test("A hit with no root view still does not pass through")
-    func hitWithoutRootDoesNotPassThrough() {
+    @Test("A hit with no root view passes through rather than swallowing the touch")
+    func hitWithoutRootPassesThrough() {
         let toast = UIView()
-        #expect(NotiHitTesting.passesThrough(hitView: toast, rootView: nil) == false)
+        #expect(NotiHitTesting.passesThrough(hitView: toast, rootView: nil))
     }
 
     @Test("A miss with no root view passes through")
