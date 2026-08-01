@@ -26,7 +26,13 @@ struct NotiRootView: View {
                 .allowsHitTesting(false)
 
             if let presentation = center.presentation(for: edge) {
+                // Keying on the token gives each presentation its own view identity,
+                // so a same-edge replacement reads as a removal plus an insertion
+                // rather than an update to the existing view. That is what replays
+                // the transition and gives the incoming toast a fresh `dragOffset`,
+                // instead of inheriting the outgoing toast's drag state.
                 NotiSlotView(presentation: presentation, center: center)
+                    .id(presentation.token)
                     .transition(transition(for: edge))
             }
         }
