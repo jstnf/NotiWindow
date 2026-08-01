@@ -1,7 +1,7 @@
+@testable import NotiWindow
 import SwiftUI
 import Testing
 import UIKit
-@testable import NotiWindow
 
 /// Window-configuration tests, hosted by the example app.
 ///

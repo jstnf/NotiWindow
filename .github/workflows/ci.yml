@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    # Naming bash explicitly gets `bash --noprofile --norc -eo pipefail`.
+    # The implicit default is only `bash -e`, which lets a failure on the left
+    # of a pipe pass silently.
+    shell: bash
+
+env:
+  # NotiWindow deploys to iOS 18.6 and builds in Swift 6 language mode, so CI
+  # needs an Xcode whose SDK is >= 18.6 and whose toolchain is >= Swift 6.1.
+  # macos-26 carries Xcode 26.0.1 through 26.6; 26.5 (17F42) is the build the
+  # package is developed against, so it is pinned rather than left to the
+  # image's rolling default. Bump this when the image drops the version.
+  XCODE_VERSION: "26.5"
+
+jobs:
+  lint:
+    name: SwiftLint
+    runs-on: macos-26
+    timeout-minutes: 10
+    env:
+      # scripts/lint.sh runs `--strict`, so an unpinned SwiftLint would turn
+      # every upstream release with a new rule into a red build on an unrelated
+      # PR. The portable release binary is universal and installs in seconds,
+      # where `brew install swiftlint` is both slower and unpinnable.
+      SWIFTLINT_VERSION: "0.65.0"
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install SwiftLint ${{ env.SWIFTLINT_VERSION }}
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/swiftlint.zip" \
+            "https://github.com/realm/SwiftLint/releases/download/${SWIFTLINT_VERSION}/portable_swiftlint.zip"
+          unzip -q "$RUNNER_TEMP/swiftlint.zip" -d "$RUNNER_TEMP/swiftlint"
+          echo "$RUNNER_TEMP/swiftlint" >> "$GITHUB_PATH"
+
+      - name: Lint
+        run: |
+          swiftlint version
+          scripts/lint.sh
+
+  test:
+    name: Test
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Select Xcode ${{ env.XCODE_VERSION }}
+        run: |
+          sudo xcode-select -s "/Applications/Xcode_${XCODE_VERSION}.app"
+          xcodebuild -version
+          swift --version
+
+      # A destination like `name=iPhone 17` is a standing trip hazard: it breaks
+      # the moment the runner image changes its pre-created device set, and it
+      # fails late with an unhelpful "Unable to find a destination" error.
+      # Resolve the newest installed iOS runtime and take an iPhone from it by
+      # UDID instead, so the job survives new device families. `jq -e` makes an
+      # empty match fail here, loudly, rather than downstream.
+      - name: Resolve simulator destination
+        run: |
+          UDID=$(xcrun simctl list devices available --json | jq -er '
+            [ .devices | to_entries[]
+              | select(.key | test("SimRuntime\\.iOS-"))
+              | { v: (.key | sub(".*SimRuntime\\.iOS-"; "") | split("-") | map(tonumber)),
+                  d: [ .value[] | select(.isAvailable and (.name | startswith("iPhone"))) ] }
+              | select(.d | length > 0)
+            ] | sort_by(.v) | last | .d[0].udid')
+          xcrun simctl list devices available | grep "$UDID"
+          echo "DESTINATION=platform=iOS Simulator,id=$UDID" >> "$GITHUB_ENV"
+
+          # Boot up front so a slow cold boot surfaces here instead of as a
+          # test-run timeout. `boot` errors if the device is already booted.
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
+
+      # The package is iOS-only and imports UIKit, so `swift build` (which
+      # targets the macOS host) cannot compile it. Everything goes through a
+      # simulator. `-scheme NotiWindow` is the scheme Xcode derives implicitly
+      # from Package.swift; no checked-in scheme is required.
+      - name: Package tests
+        run: xcodebuild test -scheme NotiWindow -destination "$DESTINATION"
+
+      - name: Example app tests
+        run: |
+          xcodebuild test \
+            -project Example/NotiWindowExample.xcodeproj \
+            -scheme NotiWindowExample \
+            -destination "$DESTINATION"
