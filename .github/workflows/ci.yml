@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DESTINATION: platform=iOS Simulator,name=iPhone 17
+
+jobs:
+  lint:
+    name: SwiftLint
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install swiftlint
+      - run: scripts/lint.sh
+
+  test:
+    name: Test
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      # The package is iOS-only and imports UIKit, so `swift build` (which targets
+      # the macOS host) cannot compile it. Everything goes through a simulator.
+      - name: Package tests
+        run: xcodebuild test -scheme NotiWindow -destination "$DESTINATION"
+
+      - name: Example app tests
+        run: |
+          xcodebuild test \
+            -project Example/NotiWindowExample.xcodeproj \
+            -scheme NotiWindowExample \
+            -destination "$DESTINATION"

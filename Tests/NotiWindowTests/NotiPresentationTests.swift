@@ -1,6 +1,6 @@
+@testable import NotiWindow
 import SwiftUI
 import Testing
-@testable import NotiWindow
 
 @Suite("Presentation values")
 struct NotiPresentationTests {

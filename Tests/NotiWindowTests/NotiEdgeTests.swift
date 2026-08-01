@@ -1,5 +1,5 @@
-import Testing
 @testable import NotiWindow
+import Testing
 
 @Suite("NotiEdge")
 struct NotiEdgeTests {

@@ -1,6 +1,6 @@
 import CoreGraphics
-import Testing
 @testable import NotiWindow
+import Testing
 
 @Suite("NotiHitTesting")
 struct NotiHitTestingTests {

@@ -31,6 +31,7 @@ public final class NotiCenter {
     /// dismissing, so a stale timer cannot cut short the toast that replaced it.
     @ObservationIgnored private var expiryTasks: [NotiEdge: Task<Void, Never>] = [:]
 
+    /// Creates a center that sleeps on the cooperative pool for its expiry timing.
     public init() {
         sleeper = TaskNotiSleeper()
     }
