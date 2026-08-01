@@ -57,6 +57,25 @@ struct DemoScreen: View {
                     }
                 }
 
+                Section("Manual dismissal") {
+                    Button("Fill both edges for 30s") {
+                        center.present(.top, duration: .seconds(30)) {
+                            NotiToast("Top — dismiss me by edge", systemImage: "arrow.up.circle.fill", tint: .blue)
+                        }
+                        center.present(.bottom, duration: .seconds(30)) {
+                            NotiToast("Bottom — survives a top-edge dismiss", systemImage: "arrow.down.circle.fill", tint: .purple)
+                        }
+                    }
+
+                    Button("Dismiss the top toast") {
+                        center.dismiss(.top)
+                    }
+
+                    Button("Dismiss everything") {
+                        center.dismissAll()
+                    }
+                }
+
                 Section("Custom content") {
                     Button("Toast with a working button") {
                         center.present(.bottom, duration: .indefinite) {
@@ -65,6 +84,10 @@ struct DemoScreen: View {
                             }
                         }
                     }
+                }
+
+                Section("Environment access") {
+                    EnvironmentPresentButton()
                 }
 
                 Section("The reason this library exists") {
@@ -115,6 +138,22 @@ private struct UndoToast: View {
         .padding(.vertical, 12)
         .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+}
+
+/// Presents through `@Environment(\.notiCenter)` rather than the explicitly-passed
+/// reference, exercising the environment path that `.notiWindow(_:)` installs.
+/// The value is optional because an `EnvironmentValues` default must be constructible
+/// from a nonisolated context, and `NotiCenter.init()` is main-actor isolated.
+private struct EnvironmentPresentButton: View {
+    @Environment(\.notiCenter) private var environmentCenter
+
+    var body: some View {
+        Button("Present via @Environment") {
+            environmentCenter?.present(.bottom) {
+                NotiToast("Presented through the environment", systemImage: "leaf.fill", tint: .mint)
+            }
+        }
     }
 }
 
