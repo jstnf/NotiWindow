@@ -436,7 +436,6 @@ struct TaskNotiSleeper: NotiSleeper {
 Create `Tests/NotiWindowTests/Support/ManualSleeper.swift`:
 
 ```swift
-import Testing
 @testable import NotiWindow
 
 /// Sleeper whose suspensions resume only when a test says so.
@@ -1191,9 +1190,12 @@ import Testing
 @Suite("NotiWindowHost")
 @MainActor
 struct NotiWindowHostTests {
-    /// The scene the test runner's own window belongs to. Returns nil if the test
-    /// host has no foreground scene, in which case the test is skipped rather than
-    /// failing spuriously.
+    /// The scene the test runner's own window belongs to.
+    ///
+    /// The iOS test bundle runs inside a runner app, which always has a window
+    /// scene. `#require` therefore treats a nil scene as a genuine failure — these
+    /// tests cannot be meaningfully evaluated without one, and silently passing
+    /// would hide that the window was never configured.
     private func activeScene() -> UIWindowScene? {
         UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
