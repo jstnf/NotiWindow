@@ -20,7 +20,7 @@ struct NotiWindowHostTests {
         )
     }
 
-    @Test("The window sits above sheets and system alerts")
+    @Test("The window sits above sheets")
     func windowSitsAboveAlerts() throws {
         let host = NotiWindowHost(scene: try activeScene(), center: NotiCenter())
         defer { host.tearDown() }
@@ -68,10 +68,12 @@ struct NotiWindowHostTests {
         let center = NotiCenter()
         let host = NotiWindowHost(scene: try activeScene(), center: center)
         defer { host.tearDown() }
+        let bounds = host.window.bounds
         let token = center.present(.bottom, duration: .indefinite) { Text("toast") }
-        center.setContentFrame(CGRect(x: 0, y: 800, width: 402, height: 60), forToken: token)
+        let toastFrame = CGRect(x: 0, y: bounds.maxY - 80, width: bounds.width, height: 60)
+        center.setContentFrame(toastFrame, forToken: token)
 
-        #expect(host.window.hitTest(CGPoint(x: 200, y: 400), with: nil) == nil)
+        #expect(host.window.hitTest(CGPoint(x: bounds.midX, y: bounds.midY), with: nil) == nil)
     }
 
     @Test("A touch on a toast is absorbed rather than passed through")
@@ -79,18 +81,21 @@ struct NotiWindowHostTests {
         let center = NotiCenter()
         let host = NotiWindowHost(scene: try activeScene(), center: center)
         defer { host.tearDown() }
+        let bounds = host.window.bounds
         let token = center.present(.bottom, duration: .indefinite) { Text("toast") }
-        center.setContentFrame(CGRect(x: 0, y: 800, width: 402, height: 60), forToken: token)
+        let toastFrame = CGRect(x: 0, y: bounds.maxY - 80, width: bounds.width, height: 60)
+        center.setContentFrame(toastFrame, forToken: token)
 
-        #expect(host.window.hitTest(CGPoint(x: 200, y: 830), with: nil) != nil)
+        #expect(host.window.hitTest(CGPoint(x: toastFrame.midX, y: toastFrame.midY), with: nil) != nil)
     }
 
     @Test("With nothing on screen the window absorbs nothing")
     func emptyWindowAbsorbsNothing() throws {
         let host = NotiWindowHost(scene: try activeScene(), center: NotiCenter())
         defer { host.tearDown() }
+        let bounds = host.window.bounds
 
-        #expect(host.window.hitTest(CGPoint(x: 200, y: 830), with: nil) == nil)
+        #expect(host.window.hitTest(CGPoint(x: bounds.midX, y: bounds.midY), with: nil) == nil)
     }
 
     @Test("Teardown leaves live toasts in the center untouched")

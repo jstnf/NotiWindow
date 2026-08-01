@@ -8,7 +8,13 @@ public extension View {
     /// non-view code can hold the same reference and present from anywhere.
     ///
     /// The window's lifetime tracks this view, so each scene in a multi-window app
-    /// gets its own window and none leak.
+    /// gets its own window and none leak. That said, `center` itself must be one per
+    /// scene if you present in a multi-window app: `NotiCenter.contentFrames` is
+    /// keyed by `NotiEdge` alone, not by window, so a center shared across two
+    /// scenes would have both windows' toasts overwrite the same frame entry.
+    /// `center` must also stay the same instance for the lifetime of the view it is
+    /// attached to — swapping which center this modifier is given does not move the
+    /// hosted window to the new center; see `NotiWindowInstaller`.
     func notiWindow(_ center: NotiCenter) -> some View {
         background(NotiWindowInstaller(center: center).frame(width: 0, height: 0))
             .environment(\.notiCenter, center)
@@ -60,6 +66,11 @@ private struct NotiWindowInstaller: UIViewRepresentable {
         return view
     }
 
+    // Intentionally empty: `center` is captured once, at `makeUIView`, into the
+    // `host` this installs. Re-rendering `.notiWindow(_:)` with a different
+    // `NotiCenter` instance does not move the already-hosted window onto it — the
+    // center passed to this modifier must stay the same instance for the lifetime
+    // of the view it is attached to.
     func updateUIView(_ uiView: InstallerView, context: Context) {}
 
     static func dismantleUIView(_ uiView: InstallerView, coordinator: Coordinator) {

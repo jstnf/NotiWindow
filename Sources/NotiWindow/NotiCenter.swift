@@ -78,7 +78,10 @@ public final class NotiCenter {
     /// coordinates.
     ///
     /// Called by the window's root view. A toast that has not reported a frame yet
-    /// simply is not interactive yet, which lasts a single layout pass.
+    /// simply is not interactive yet, which lasts a single layout pass. The same is
+    /// true for one layout pass after a same-edge replacement: until the incoming
+    /// toast's own `onGeometryChange` fires, `contentFrames[edge]` still holds the
+    /// outgoing toast's rect, keyed under the edge the new one now occupies too.
     ///
     /// A token that no longer occupies a slot is ignored. A dismissed toast keeps
     /// laying out for the length of its exit transition, and honouring those reports
@@ -116,10 +119,14 @@ public final class NotiCenter {
     ///
     /// The frame goes with the toast: a slot that is on its way out must stop
     /// absorbing touches immediately, rather than for the length of its exit
-    /// animation.
+    /// animation. The expiry task handle goes with it too, so `expiryTask(for:)`
+    /// doesn't report a stale handle for a slot that no longer has a toast in it —
+    /// the (possibly still-running) task itself is left alone; it is a no-op once it
+    /// fires, since dismissal is token-checked.
     private func clear(_ edge: NotiEdge) {
         slots[edge] = nil
         contentFrames[edge] = nil
+        expiryTasks[edge] = nil
     }
 
     /// Schedule auto-dismiss for a fixed-duration presentation.
@@ -139,7 +146,14 @@ public final class NotiCenter {
 
         expiryTasks[edge] = Task { [weak self] in
             guard let self else { return }
-            try? await sleeper.sleep(for: .seconds(seconds))
+            do {
+                try await sleeper.sleep(for: .seconds(seconds))
+            } catch {
+                // Cancellation (or any other failure) means this expiry did not
+                // actually elapse. Dismissing here would be backwards — the whole
+                // point of cancelling a timer is to *not* dismiss its toast.
+                return
+            }
             // Dismissal is token-checked, so a timer belonging to a toast that has
             // since been replaced finds nothing to clear.
             dismiss(token)

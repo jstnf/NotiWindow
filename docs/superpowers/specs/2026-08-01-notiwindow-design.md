@@ -14,7 +14,7 @@ applying `.overlay(alignment: .bottom)` inside the view hierarchy, so anything
 presented above that hierarchy covers it. `EditEntrySheet` works around this by
 attaching a second toast host inside the sheet. Every new modal surface needs the
 same workaround. A toast hosted in its own window at `windowLevel = .alert + 1`
-renders above sheets and system alerts, and the workaround disappears.
+renders above sheets, and the workaround disappears.
 
 iAniList is the first consumer, but the package takes no dependency on it and knows
 nothing about anime, media, or AniList.
@@ -132,9 +132,16 @@ extension View {
 }
 
 extension EnvironmentValues {
-    public var notiCenter: NotiCenter { get set }
+    public var notiCenter: NotiCenter? { get set }
 }
+```
 
+Optional, not `NotiCenter`: an `EnvironmentValues` default must be constructible from
+a nonisolated context, and `NotiCenter.init()` is `@MainActor`-isolated, so a
+non-optional default is not expressible. Views below a `.notiWindow(_:)` always find
+a value there.
+
+```swift
 public struct NotiToast: View {
     /// `tint` colors the leading SF Symbol; the text always uses the primary
     /// foreground style. `systemImage: nil` renders text only.
@@ -179,8 +186,10 @@ own window and center binding, and neither leaks.
 
 The explicit seam beneath the modifier. Owns:
 
-- a `PassthroughWindow(windowScene:)` at `windowLevel = .alert + 1` — above sheets
-  and above system alerts
+- a `PassthroughWindow(windowScene:)` at `windowLevel = .alert + 1` — above sheets.
+  `.alert + 1` clears `UIAlertController`, but true system alerts (permission
+  prompts) are drawn by another process and sit above everything regardless of
+  window level.
 - a `UIHostingController<NotiRootView>` with a clear `view.backgroundColor` and a
   clear window background
 - `isHidden = false`, and the window never becomes key, so it cannot steal first
@@ -249,10 +258,16 @@ behavior is deferred until the visual design settles.
 Auto-dismiss timing lives in `NotiCenter`, behind an injected seam:
 
 ```swift
-protocol NotiSleeper: Sendable {
+@MainActor
+protocol NotiSleeper {
     func sleep(for duration: Duration) async throws
 }
 ```
+
+Deviation from this spec: originally specified as `Sendable` and non-isolated,
+shipped as `@MainActor` instead. Every call site is already the main actor, and
+isolating the protocol lets test doubles such as `ManualSleeper` hold plain mutable
+state without locks.
 
 The default implementation wraps `Task.sleep`. Tests inject a manual sleeper they
 resume explicitly.
@@ -275,7 +290,7 @@ its UI; the worst realistic outcome is a toast that does not appear.
 |---|---|
 | `present` called before `.notiWindow()` installs | Center stores the presentation. The host renders whatever is current when it appears, so a launch-time toast is not lost. |
 | `view.window?.windowScene` nil on first pass | Installer retries on the next `updateUIView`. No crash, no assertion. |
-| Host torn down while toasts are live | Expiry tasks cancelled; center state left intact so a re-install renders correctly. |
+| Host torn down while toasts are live | Teardown touches no `NotiCenter` state. Expiry tasks keep running and center state stays live, deliberately: cancelling would suppress auto-dismiss for live toasts and leave stale toasts stuck on screen when a scene rebuilds. A re-install renders whatever is still current. |
 | `dismiss(_ token:)` after replacement | No-op. |
 | `present` called off the main actor | Impossible — `NotiCenter` is `@MainActor`, enforced at compile time. |
 

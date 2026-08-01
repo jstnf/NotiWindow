@@ -96,6 +96,8 @@ argument will make and own one for you.
 - **Reduce Motion.** Slide transitions collapse to a fade automatically.
 - **Passthrough.** Touches outside a toast reach the app untouched — including while
   a toast is up over a sheet. Buttons inside a toast work normally.
+- **One center per scene.** If your app presents multiple windows/scenes at once,
+  give each its own `NotiCenter`; a center shared across scenes is not supported.
 
 ## License
 

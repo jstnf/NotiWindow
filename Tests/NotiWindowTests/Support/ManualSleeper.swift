@@ -31,8 +31,13 @@ final class ManualSleeper: NotiSleeper {
     ///
     /// Yields rather than waiting on the clock. Expiry work runs on the main actor,
     /// so yielding is enough to let a just-spawned task reach its `sleep` call.
+    ///
+    /// Spins on `requestedDurations.count`, not `pending.count`: `pending` shrinks
+    /// when `fireNext()` resumes a sleep, so a test that fires before awaiting a
+    /// later sleep would spin forever against `pending.count`. `requestedDurations`
+    /// only grows, so this terminates for the right reason.
     func awaitSleepRequest(count: Int = 1) async {
-        while pending.count < count {
+        while requestedDurations.count < count {
             await Task.yield()
         }
     }
