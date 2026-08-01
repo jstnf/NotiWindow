@@ -13,6 +13,7 @@ Package.resolved
 
 # Agent scratch — SDD ledger, briefs, review packages
 .superpowers/
+docs
 
 # macOS
 .DS_Store
