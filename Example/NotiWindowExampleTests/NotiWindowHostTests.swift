@@ -161,6 +161,25 @@ struct NotiRealLayoutTests {
         #expect(host.window.hitTest(CGPoint(x: rect.midX, y: rect.minY - 200), with: nil) == nil)
     }
 
+    @Test("A toast never spills past its container's width")
+    func toastFitsItsContainer() throws {
+        let center = NotiCenter()
+        let host = NotiWindowHost(scene: try activeScene(), center: center)
+        defer { host.tearDown() }
+
+        center.present(.bottom, duration: .indefinite) {
+            Text("A toast with a reasonably long line of copy in it that has to wrap")
+        }
+        host.window.layoutIfNeeded()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.5))
+        host.window.layoutIfNeeded()
+
+        let rect = try #require(host.frameStore.liveFrames(for: center.liveTokens).first)
+
+        #expect(rect.width <= host.frameStore.containerSize.width)
+        #expect(rect.minX >= 0)
+    }
+
     /// The core behavior this whole branch delivers: a window mid-resize hands
     /// touches back to the app rather than absorbing them over geometry that no
     /// longer exists.
@@ -209,7 +228,10 @@ struct NotiRealLayoutTests {
         let token = center.present(.bottom, duration: .indefinite) { Text("toast") }
         let firstRect = CGRect(x: 0, y: 700, width: 402, height: 60)
         let secondRect = CGRect(x: 0, y: 300, width: 320, height: 60)
-        let size = first.window.bounds.size
+        // Deliberately not `first.window.bounds.size`: the container size must be the
+        // SwiftUI root view's size, and the root sits inside the safe area, so the two
+        // differ. See the comment in `touchOutsideEveryToastFallsThrough`.
+        let size = CGSize(width: 320, height: 480)
 
         first.frameStore.setContainerSize(size)
         second.frameStore.setContainerSize(size)
