@@ -71,9 +71,15 @@ struct NotiWindowHostTests {
         let bounds = host.window.bounds
         let token = center.present(.bottom, duration: .indefinite) { Text("toast") }
         let toastFrame = CGRect(x: 0, y: bounds.maxY - 80, width: bounds.width, height: 60)
-        host.frameStore.setContainerSize(bounds.size)
+        // Deliberately not `bounds.size`: that is exactly the value the container
+        // size must never be compared against (see `NotiFrameStore.containerSize`),
+        // and using it here — even just as a stand-in — would coincidentally match
+        // whatever the real root view reports if SwiftUI ever laid this window out
+        // before the assertion below runs, hiding a bug behind test-order luck.
+        let containerSize = CGSize(width: 320, height: 480)
+        host.frameStore.setContainerSize(containerSize)
         host.frameStore.set(
-            NotiMeasuredFrame(rect: toastFrame, containerSize: bounds.size),
+            NotiMeasuredFrame(rect: toastFrame, containerSize: containerSize),
             for: token
         )
 
@@ -88,9 +94,12 @@ struct NotiWindowHostTests {
         let bounds = host.window.bounds
         let token = center.present(.bottom, duration: .indefinite) { Text("toast") }
         let toastFrame = CGRect(x: 0, y: bounds.maxY - 80, width: bounds.width, height: 60)
-        host.frameStore.setContainerSize(bounds.size)
+        // See the comment in `touchOutsideEveryToastFallsThrough`: an arbitrary size,
+        // not the window's own bounds.
+        let containerSize = CGSize(width: 320, height: 480)
+        host.frameStore.setContainerSize(containerSize)
         host.frameStore.set(
-            NotiMeasuredFrame(rect: toastFrame, containerSize: bounds.size),
+            NotiMeasuredFrame(rect: toastFrame, containerSize: containerSize),
             for: token
         )
 
@@ -150,6 +159,39 @@ struct NotiRealLayoutTests {
         #expect(host.window.hitTest(inside, with: nil) != nil)
         // And a point well away from it still belongs to the app.
         #expect(host.window.hitTest(CGPoint(x: rect.midX, y: rect.minY - 200), with: nil) == nil)
+    }
+
+    /// The core behavior this whole branch delivers: a window mid-resize hands
+    /// touches back to the app rather than absorbing them over geometry that no
+    /// longer exists.
+    ///
+    /// `NotiFrameStoreTests.staleSizeIsNotReported` covers this at the store level in
+    /// isolation; this drives it through `PassthroughWindow.hitTest` itself, which is
+    /// what actually decides whether a touch reaches the app.
+    @Test("A stale container size makes the window pass touches through")
+    func staleContainerSizeMakesTheWindowPassTouchesThrough() throws {
+        let center = NotiCenter()
+        let host = NotiWindowHost(scene: try activeScene(), center: center)
+        defer { host.tearDown() }
+        let bounds = host.window.bounds
+        let token = center.present(.bottom, duration: .indefinite) { Text("toast") }
+        let toastFrame = CGRect(x: 0, y: bounds.maxY - 80, width: bounds.width, height: 60)
+        let containerSize = CGSize(width: 320, height: 480)
+
+        host.frameStore.setContainerSize(containerSize)
+        host.frameStore.set(
+            NotiMeasuredFrame(rect: toastFrame, containerSize: containerSize),
+            for: token
+        )
+        let point = CGPoint(x: toastFrame.midX, y: toastFrame.midY)
+
+        #expect(host.window.hitTest(point, with: nil) != nil)
+
+        // The window has resized, but the toast has not re-reported at the new size
+        // yet — its stored frame is now for a container size that no longer exists.
+        host.frameStore.setContainerSize(CGSize(width: containerSize.width, height: containerSize.height + 100))
+
+        #expect(host.window.hitTest(point, with: nil) == nil)
     }
 
     @Test("Two hosts sharing one center keep independent frames")
