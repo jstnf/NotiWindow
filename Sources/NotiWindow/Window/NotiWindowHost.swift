@@ -14,11 +14,17 @@ import UIKit
 final class NotiWindowHost {
     let window: PassthroughWindow
 
+    /// This window's own toast rects. Owned here so the root view that writes them
+    /// and the window that reads them are looking at the same store, and so a second
+    /// scene driven by the same center gets a second, independent one.
+    let frameStore = NotiFrameStore()
+
     init(scene: UIWindowScene, center: NotiCenter) {
-        let controller = UIHostingController(rootView: NotiRootView(center: center))
+        let store = frameStore
+        let controller = UIHostingController(rootView: NotiRootView(center: center, frameStore: store))
         controller.view.backgroundColor = .clear
 
-        window = PassthroughWindow(windowScene: scene)
+        window = PassthroughWindow(windowScene: scene, frameStore: store)
         window.notiCenter = center
         window.rootViewController = controller
         window.backgroundColor = .clear

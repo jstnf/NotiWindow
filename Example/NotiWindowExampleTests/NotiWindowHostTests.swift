@@ -71,7 +71,11 @@ struct NotiWindowHostTests {
         let bounds = host.window.bounds
         let token = center.present(.bottom, duration: .indefinite) { Text("toast") }
         let toastFrame = CGRect(x: 0, y: bounds.maxY - 80, width: bounds.width, height: 60)
-        center.setContentFrame(toastFrame, forToken: token)
+        host.frameStore.setContainerSize(bounds.size)
+        host.frameStore.set(
+            NotiMeasuredFrame(rect: toastFrame, containerSize: bounds.size),
+            for: token
+        )
 
         #expect(host.window.hitTest(CGPoint(x: bounds.midX, y: bounds.midY), with: nil) == nil)
     }
@@ -84,7 +88,11 @@ struct NotiWindowHostTests {
         let bounds = host.window.bounds
         let token = center.present(.bottom, duration: .indefinite) { Text("toast") }
         let toastFrame = CGRect(x: 0, y: bounds.maxY - 80, width: bounds.width, height: 60)
-        center.setContentFrame(toastFrame, forToken: token)
+        host.frameStore.setContainerSize(bounds.size)
+        host.frameStore.set(
+            NotiMeasuredFrame(rect: toastFrame, containerSize: bounds.size),
+            for: token
+        )
 
         #expect(host.window.hitTest(CGPoint(x: toastFrame.midX, y: toastFrame.midY), with: nil) != nil)
     }
@@ -107,5 +115,70 @@ struct NotiWindowHostTests {
         host.tearDown()
 
         #expect(center.presentation(for: .top)?.token == token)
+    }
+}
+
+@Suite("NotiWindow real layout")
+@MainActor
+struct NotiRealLayoutTests {
+    private func activeScene() throws -> UIWindowScene {
+        try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+    }
+
+    /// End-to-end: a toast laid out by SwiftUI is hit-testable through the window.
+    ///
+    /// Every other test in this file writes frames into the store by hand, so none of
+    /// them exercise the sizes SwiftUI actually reports. That gap hides a real defect:
+    /// the root view is laid out inside the safe area, so its size is smaller than the
+    /// window's bounds, and checking a frame's container size against `window.bounds`
+    /// marks every toast stale forever — leaving toasts permanently non-interactive
+    /// while every hand-written test still passes.
+    @Test("A toast laid out by SwiftUI absorbs a touch on itself")
+    func swiftUILaidOutToastAbsorbsItsOwnTouch() throws {
+        let center = NotiCenter()
+        let host = NotiWindowHost(scene: try activeScene(), center: center)
+        defer { host.tearDown() }
+
+        center.present(.bottom, duration: .indefinite) { Text("toast") }
+        host.window.layoutIfNeeded()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.5))
+        host.window.layoutIfNeeded()
+
+        let rect = try #require(host.frameStore.liveFrames(for: center.liveTokens).first)
+        let inside = CGPoint(x: rect.midX, y: rect.midY)
+
+        #expect(host.window.hitTest(inside, with: nil) != nil)
+        // And a point well away from it still belongs to the app.
+        #expect(host.window.hitTest(CGPoint(x: rect.midX, y: rect.minY - 200), with: nil) == nil)
+    }
+
+    @Test("Two hosts sharing one center keep independent frames")
+    func twoHostsSharingACenterKeepIndependentFrames() throws {
+        // The multi-window case in miniature: one center, two windows. Frames are
+        // per-window because a rect in window coordinates means nothing to another
+        // window — which is what the old center-owned storage got wrong, and why
+        // sharing a center across scenes used to be unsupported.
+        let center = NotiCenter()
+        let first = NotiWindowHost(scene: try activeScene(), center: center)
+        defer { first.tearDown() }
+        let second = NotiWindowHost(scene: try activeScene(), center: center)
+        defer { second.tearDown() }
+
+        let token = center.present(.bottom, duration: .indefinite) { Text("toast") }
+        let firstRect = CGRect(x: 0, y: 700, width: 402, height: 60)
+        let secondRect = CGRect(x: 0, y: 300, width: 320, height: 60)
+        let size = first.window.bounds.size
+
+        first.frameStore.setContainerSize(size)
+        second.frameStore.setContainerSize(size)
+        first.frameStore.set(NotiMeasuredFrame(rect: firstRect, containerSize: size), for: token)
+        second.frameStore.set(NotiMeasuredFrame(rect: secondRect, containerSize: size), for: token)
+
+        #expect(first.frameStore.liveFrames(for: [token]) == [firstRect])
+        #expect(second.frameStore.liveFrames(for: [token]) == [secondRect])
+
+        // And each window hit-tests against its own rect, not the other's.
+        #expect(first.window.hitTest(CGPoint(x: 200, y: 730), with: nil) != nil)
+        #expect(first.window.hitTest(CGPoint(x: 200, y: 330), with: nil) == nil)
     }
 }
