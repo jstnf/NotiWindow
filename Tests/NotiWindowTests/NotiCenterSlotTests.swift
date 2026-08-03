@@ -26,6 +26,46 @@ struct NotiCenterSlotTests {
         #expect(center.presentation(for: .bottom) == nil)
     }
 
+    @Test("A presented token reports itself as on screen")
+    func presentedTokenIsPresented() {
+        let (center, _) = makeCenter()
+        let token = center.present(.top) { Text("hello") }
+
+        #expect(center.isPresented(token))
+    }
+
+    @Test("A dismissed token no longer reports itself as on screen")
+    func dismissedTokenIsNotPresented() {
+        let (center, _) = makeCenter()
+        let token = center.present(.top) { Text("hello") }
+
+        center.dismiss(token)
+
+        #expect(!center.isPresented(token))
+    }
+
+    @Test("A replaced token stops reporting itself as on screen")
+    func replacedTokenIsNotPresented() {
+        let (center, _) = makeCenter()
+        let outgoing = center.present(.bottom) { Text("first") }
+        let incoming = center.present(.bottom) { Text("second") }
+
+        #expect(!center.isPresented(outgoing))
+        #expect(center.isPresented(incoming))
+    }
+
+    @Test("An edge reports whether anything occupies it")
+    func edgeReportsOccupancy() {
+        let (center, _) = makeCenter()
+
+        #expect(!center.isPresented(.top))
+
+        center.present(.top) { Text("hello") }
+
+        #expect(center.isPresented(.top))
+        #expect(!center.isPresented(.bottom))
+    }
+
     @Test("Presenting defaults to the bottom edge")
     func presentDefaultsToBottom() {
         let (center, _) = makeCenter()
