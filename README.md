@@ -116,6 +116,20 @@ argument will make and own one for you.
   rotation, Split View, Stage Manager, or an interactive resize — makes that window
   pass touches through until its toasts report where they landed, so the app below
   never stops responding.
+- **A center is the unit of sharing.** A center owns *which* toast is up, so every
+  window driven by the same center shows the same toast, and dismissing it in one
+  dismisses it everywhere. That is the point when the message belongs to the app —
+  "You're offline" should not appear in one window only. When a toast belongs to the
+  window that raised it — "Saved to your list" — give each scene its own center:
+
+  ```swift
+  WindowGroup {
+      RootView().notiWindow()   // a center per window
+  }
+  ```
+
+  `notiWindow()` makes and owns one per scene. `notiWindow(_:)` uses the center you
+  hand it, so a center held on your `App` is shared by every window in the group.
 
 ## Contributing
 
