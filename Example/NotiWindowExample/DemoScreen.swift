@@ -6,6 +6,9 @@ struct DemoScreen: View {
 
     @State private var isSheetPresented = false
     @State private var syncToken: NotiToken?
+    @State private var typedText = ""
+
+    @FocusState private var isFieldFocused: Bool
 
     /// Read from the center so the button reflects what is actually on screen.
     private var isSyncing: Bool {
@@ -41,6 +44,33 @@ struct DemoScreen: View {
                     Button("Replace the bottom toast") {
                         center.present(.bottom) { NotiToast("First") }
                         center.present(.bottom) { NotiToast("Second replaced it") }
+                    }
+                }
+
+                // Raising the keyboard shrinks the safe area, and with it the toast
+                // window's container size — so every stored rect stops matching and
+                // each toast has to re-report at the new size before it can absorb
+                // touches again. That makes this the most common real-world trigger
+                // of the resize path, far more so than rotation.
+                //
+                // Deliberately near the top of the list: the keyboard never covers it,
+                // so SwiftUI never scrolls it into view. A scroll would move every
+                // other row and invalidate coordinates measured mid-check.
+                Section("Keyboard") {
+                    TextField("Focus me — the keyboard resizes the window", text: $typedText)
+                        .focused($isFieldFocused)
+
+                    // Reaches the interesting state in one tap rather than two, so a
+                    // driver has a single action to verify instead of a sequence.
+                    Button("Present a toast, then focus the field") {
+                        center.present(.bottom, duration: .seconds(30)) {
+                            NotiToast("I should survive the keyboard", systemImage: "keyboard", tint: .indigo)
+                        }
+                        isFieldFocused = true
+                    }
+
+                    Button("Dismiss the keyboard") {
+                        isFieldFocused = false
                     }
                 }
 
@@ -168,14 +198,12 @@ private struct UndoToast: View {
 
 /// Presents through `@Environment(\.notiCenter)` rather than the explicitly-passed
 /// reference, exercising the environment path that `.notiWindow(_:)` installs.
-/// The value is optional because an `EnvironmentValues` default must be constructible
-/// from a nonisolated context, and `NotiCenter.init()` is main-actor isolated.
 private struct EnvironmentPresentButton: View {
     @Environment(\.notiCenter) private var environmentCenter
 
     var body: some View {
         Button("Present via @Environment") {
-            environmentCenter?.present(.bottom) {
+            environmentCenter.present(.bottom) {
                 NotiToast("Presented through the environment", systemImage: "leaf.fill", tint: .mint)
             }
         }

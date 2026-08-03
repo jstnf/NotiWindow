@@ -1,4 +1,7 @@
+import os
 import SwiftUI
+
+private let log = Logger(subsystem: "NotiWindow", category: "NotiCenter")
 
 /// App-wide toast presentation.
 ///
@@ -6,23 +9,14 @@ import SwiftUI
 /// and a bottom toast may be on screen at once; presenting again on an occupied edge
 /// replaces its occupant.
 ///
-/// The center owns state and timing, and — because it is the one object the toast
-/// window and its root view already share — it also holds where each live toast is
-/// on screen, so the window can decide which touches belong to a toast. A
-/// `.notiWindow(center)` modifier renders whatever the center currently holds, which
-/// is why a toast presented before the window installs is not lost.
+/// The center owns state and timing. A `.notiWindow(center)` modifier renders
+/// whatever the center currently holds, which is why a toast presented before the
+/// window installs is not lost. Where each live toast actually is on screen is a
+/// window's own business, not the center's — see `NotiFrameStore`.
 @MainActor
 @Observable
 public final class NotiCenter {
     private var slots: [NotiEdge: NotiPresentation] = [:]
-
-    /// Where each live toast currently is on screen, in window coordinates.
-    ///
-    /// Written by the window's root view as it lays each toast out, and read by
-    /// `PassthroughWindow` to decide which touches belong to a toast. Deliberately
-    /// unobserved: hit-testing reads it, and making it observable would invalidate
-    /// the very views that write it on every layout pass.
-    @ObservationIgnored private(set) var contentFrames: [NotiEdge: CGRect] = [:]
 
     @ObservationIgnored private let sleeper: NotiSleeper
 
@@ -30,6 +24,17 @@ public final class NotiCenter {
     /// each one re-checks that its own token still occupies the slot before
     /// dismissing, so a stale timer cannot cut short the toast that replaced it.
     @ObservationIgnored private var expiryTasks: [NotiEdge: Task<Void, Never>] = [:]
+
+    /// How many windows are currently rendering this center.
+    ///
+    /// A center may legitimately drive several scenes, so this is a count rather than
+    /// a flag. Presenting into a center with none attached renders nowhere, which is
+    /// almost always a missing `.notiWindow(_:)`.
+    @ObservationIgnored private(set) var attachedWindowCount = 0
+
+    /// Warned at most once per center, so a test suite that presents into detached
+    /// centers does not drown the log.
+    @ObservationIgnored private var hasWarnedAboutNoWindow = false
 
     /// Creates a center that sleeps on the cooperative pool for its expiry timing.
     public init() {
@@ -43,6 +48,26 @@ public final class NotiCenter {
     /// The toast currently occupying `edge`, if any.
     func presentation(for edge: NotiEdge) -> NotiPresentation? {
         slots[edge]
+    }
+
+    /// The tokens of the toasts currently on screen.
+    ///
+    /// Read by each window at hit-test time. A dismissed or replaced token drops out
+    /// of this the moment its slot is cleared, which is what stops its toast
+    /// absorbing touches for the length of its exit transition — the window's stored
+    /// rect for that token is simply no longer consulted, and is pruned.
+    var liveTokens: Set<NotiToken> {
+        Set(slots.values.map(\.token))
+    }
+
+    /// Called by a window host as it installs itself.
+    func attach() {
+        attachedWindowCount += 1
+    }
+
+    /// Called by a window host as it tears itself down.
+    func detach() {
+        attachedWindowCount = max(0, attachedWindowCount - 1)
     }
 
     /// Expiry work scheduled for `edge`, if any. Test seam.
@@ -62,6 +87,8 @@ public final class NotiCenter {
         dismissOnSwipe: Bool = true,
         @ViewBuilder content: () -> some View
     ) -> NotiToken {
+        warnIfNoWindowAttached()
+
         let presentation = NotiPresentation(
             token: NotiToken(),
             edge: edge,
@@ -93,25 +120,6 @@ public final class NotiCenter {
         slots[edge] != nil
     }
 
-    /// Record where the toast identified by `token` has been laid out, in window
-    /// coordinates.
-    ///
-    /// Called by the window's root view. A toast that has not reported a frame yet
-    /// simply is not interactive yet, which lasts a single layout pass. The same is
-    /// true for one layout pass after a same-edge replacement: until the incoming
-    /// toast's own `onGeometryChange` fires, `contentFrames[edge]` still holds the
-    /// outgoing toast's rect, keyed under the edge the new one now occupies too.
-    ///
-    /// A token that no longer occupies a slot is ignored. A dismissed toast keeps
-    /// laying out for the length of its exit transition, and honouring those reports
-    /// would write its frame back in after `clear` dropped it — leaving a band that
-    /// absorbs touches with no toast under it, for good.
-    func setContentFrame(_ frame: CGRect, forToken token: NotiToken) {
-        guard let edge = NotiEdge.allCases.first(where: { slots[$0]?.token == token }) else { return }
-
-        contentFrames[edge] = frame
-    }
-
     /// Clear whatever occupies `edge`.
     public func dismiss(_ edge: NotiEdge) {
         clear(edge)
@@ -134,18 +142,34 @@ public final class NotiCenter {
         }
     }
 
-    /// Empty one slot, forgetting where its toast was.
+    /// Empty one slot.
     ///
-    /// The frame goes with the toast: a slot that is on its way out must stop
-    /// absorbing touches immediately, rather than for the length of its exit
-    /// animation. The expiry task handle goes with it too, so `expiryTask(for:)`
-    /// doesn't report a stale handle for a slot that no longer has a toast in it —
-    /// the (possibly still-running) task itself is left alone; it is a no-op once it
-    /// fires, since dismissal is token-checked.
+    /// Dropping the slot is what stops its toast absorbing touches: each window
+    /// consults `liveTokens` before its own stored rects, so a cleared toast stops
+    /// being hit-tested immediately rather than for the length of its exit animation.
+    /// The expiry task handle goes with it too, so `expiryTask(for:)` doesn't report a
+    /// stale handle for a slot that no longer has a toast in it — the (possibly still
+    /// running) task itself is left alone; it is a no-op once it fires, since
+    /// dismissal is token-checked.
     private func clear(_ edge: NotiEdge) {
         slots[edge] = nil
-        contentFrames[edge] = nil
         expiryTasks[edge] = nil
+    }
+
+    /// Surface the one misconfiguration a non-optional environment value can no longer
+    /// signal on its own: presenting into a center that nothing renders.
+    private func warnIfNoWindowAttached() {
+        #if DEBUG
+        guard attachedWindowCount == 0, !hasWarnedAboutNoWindow else { return }
+
+        hasWarnedAboutNoWindow = true
+        log.warning(
+            """
+            Presenting into a NotiCenter with no window attached — this toast will not \
+            appear. Attach one with .notiWindow(center) at your app root.
+            """
+        )
+        #endif
     }
 
     /// Schedule auto-dismiss for a fixed-duration presentation.

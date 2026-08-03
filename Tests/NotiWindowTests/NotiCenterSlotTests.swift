@@ -159,86 +159,60 @@ struct NotiCenterSlotTests {
         #expect(presentation?.dismissOnSwipe == true)
     }
 
-    @Test("A center with nothing on screen reports no content frames")
-    func noContentFramesWhenEmpty() {
+    @Test("A center with nothing on screen has no live tokens")
+    func noLiveTokensWhenEmpty() {
         let (center, _) = makeCenter()
 
-        #expect(center.contentFrames.isEmpty)
+        #expect(center.liveTokens.isEmpty)
     }
 
-    @Test("A reported frame is kept for its own edge")
-    func reportedFrameIsKeptForItsEdge() {
+    @Test("A presented toast's token is live")
+    func presentedTokenIsLive() {
         let (center, _) = makeCenter()
         let token = center.present(.bottom) { Text("bottom") }
-        let frame = CGRect(x: 0, y: 800, width: 402, height: 60)
 
-        center.setContentFrame(frame, forToken: token)
-
-        #expect(center.contentFrames[.bottom] == frame)
-        #expect(center.contentFrames[.top] == nil)
+        #expect(center.liveTokens == [token])
     }
 
-    @Test("Dismissing an edge forgets that edge's frame and keeps the other")
-    func dismissingAnEdgeForgetsOnlyItsFrame() {
+    @Test("Dismissing an edge drops only that edge's token")
+    func dismissingAnEdgeDropsOnlyItsToken() {
         let (center, _) = makeCenter()
-        let topToken = center.present(.top) { Text("top") }
+        center.present(.top) { Text("top") }
         let bottomToken = center.present(.bottom) { Text("bottom") }
-        let bottomFrame = CGRect(x: 0, y: 800, width: 402, height: 60)
-        center.setContentFrame(CGRect(x: 0, y: 60, width: 402, height: 60), forToken: topToken)
-        center.setContentFrame(bottomFrame, forToken: bottomToken)
 
         center.dismiss(.top)
 
-        #expect(center.contentFrames[.top] == nil)
-        #expect(center.contentFrames[.bottom] == bottomFrame)
+        #expect(center.liveTokens == [bottomToken])
     }
 
-    @Test("Dismissing by token forgets that toast's frame")
-    func dismissingByTokenForgetsItsFrame() {
+    @Test("Dismissing by token drops that token")
+    func dismissingByTokenDropsIt() {
         let (center, _) = makeCenter()
         let token = center.present(.bottom) { Text("bottom") }
-        center.setContentFrame(CGRect(x: 0, y: 800, width: 402, height: 60), forToken: token)
 
         center.dismiss(token)
 
-        #expect(center.contentFrames[.bottom] == nil)
+        #expect(center.liveTokens.isEmpty)
     }
 
-    @Test("Dismissing everything forgets every frame")
-    func dismissAllForgetsEveryFrame() {
+    @Test("Dismissing everything drops every token")
+    func dismissAllDropsEveryToken() {
         let (center, _) = makeCenter()
-        let topToken = center.present(.top) { Text("top") }
-        let bottomToken = center.present(.bottom) { Text("bottom") }
-        center.setContentFrame(CGRect(x: 0, y: 60, width: 402, height: 60), forToken: topToken)
-        center.setContentFrame(CGRect(x: 0, y: 800, width: 402, height: 60), forToken: bottomToken)
+        center.present(.top) { Text("top") }
+        center.present(.bottom) { Text("bottom") }
 
         center.dismissAll()
 
-        #expect(center.contentFrames.isEmpty)
+        #expect(center.liveTokens.isEmpty)
     }
 
-    @Test("A frame reported by a dismissed toast is ignored")
-    func frameFromDismissedToastIsIgnored() {
-        let (center, _) = makeCenter()
-        let token = center.present(.bottom) { Text("bottom") }
-        center.dismiss(token)
-
-        // What a toast still animating out reports on its way off screen.
-        center.setContentFrame(CGRect(x: 0, y: 840, width: 402, height: 60), forToken: token)
-
-        #expect(center.contentFrames[.bottom] == nil)
-    }
-
-    @Test("A frame reported by a replaced toast does not overwrite its replacement's")
-    func frameFromReplacedToastIsIgnored() {
+    @Test("Replacing a toast drops the outgoing token and keeps the incoming one")
+    func replacementDropsTheOutgoingToken() {
         let (center, _) = makeCenter()
         let outgoing = center.present(.bottom) { Text("first") }
         let incoming = center.present(.bottom) { Text("second") }
-        let incomingFrame = CGRect(x: 0, y: 800, width: 402, height: 60)
-        center.setContentFrame(incomingFrame, forToken: incoming)
 
-        center.setContentFrame(CGRect(x: 0, y: 840, width: 402, height: 60), forToken: outgoing)
-
-        #expect(center.contentFrames[.bottom] == incomingFrame)
+        #expect(center.liveTokens == [incoming])
+        #expect(!center.liveTokens.contains(outgoing))
     }
 }

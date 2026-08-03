@@ -85,14 +85,14 @@ if center.isPresented(token) { … }   // or center.isPresented(.top)
 Reading that inside a view body tracks it, so UI derived from it updates when the toast
 goes away, whatever made it go.
 
-Inside views, reach the center through the environment. The value is optional —
-an `EnvironmentValues` default has to be constructible from a nonisolated context,
-and `NotiCenter.init()` is main-actor isolated — but any view below a
-`.notiWindow(_:)` finds one there:
+Inside views, reach the center through the environment:
 
 ```swift
 @Environment(\.notiCenter) private var center
 ```
+
+Views below a `.notiWindow(_:)` find that modifier's center. Views without one find a
+shared default that renders nowhere — presenting into it warns in debug builds.
 
 If every caller reaches the center through the environment, `.notiWindow()` with no
 argument will make and own one for you.
@@ -111,8 +111,25 @@ argument will make and own one for you.
 - **Reduce Motion.** Slide transitions collapse to a fade automatically.
 - **Passthrough.** Touches outside a toast reach the app untouched — including while
   a toast is up over a sheet. Buttons inside a toast work normally.
-- **One center per scene.** If your app presents multiple windows/scenes at once,
-  give each its own `NotiCenter`; a center shared across scenes is not supported.
+- **Multi-window.** One center can drive several scenes at once; each window keeps its
+  own record of where its toasts are. Window geometry changing underneath a toast —
+  rotation, Split View, Stage Manager, or an interactive resize — makes that window
+  pass touches through until its toasts report where they landed, so the app below
+  never stops responding.
+- **A center is the unit of sharing.** A center owns *which* toast is up, so every
+  window driven by the same center shows the same toast, and dismissing it in one
+  dismisses it everywhere. That is the point when the message belongs to the app —
+  "You're offline" should not appear in one window only. When a toast belongs to the
+  window that raised it — "Saved to your list" — give each scene its own center:
+
+  ```swift
+  WindowGroup {
+      RootView().notiWindow()   // a center per window
+  }
+  ```
+
+  `notiWindow()` makes and owns one per scene. `notiWindow(_:)` uses the center you
+  hand it, so a center held on your `App` is shared by every window in the group.
 
 ## Contributing
 

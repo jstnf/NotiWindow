@@ -1,11 +1,17 @@
 import SwiftUI
 
+extension NamedCoordinateSpace {
+    /// The toast window's own space, so a toast can measure the window it is in.
+    static var notiRoot: NamedCoordinateSpace { .named("NotiWindow.root") }
+}
+
 /// Root of the toast window: two independent edge slots over a transparent backdrop.
 ///
 /// Nothing here is opaque or interactive except a live toast, which is what lets
 /// `PassthroughWindow` hand every other touch back to the app.
 struct NotiRootView: View {
     let center: NotiCenter
+    let frameStore: NotiFrameStore
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -15,6 +21,18 @@ struct NotiRootView: View {
             slot(.bottom)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // Named so each toast can measure the window it landed in during the same
+        // layout pass that measures the toast. See `NotiSlotView.body`.
+        .coordinateSpace(.notiRoot)
+        // The size every toast frame is checked against. Measured here, from the same
+        // layout as the toasts themselves, so both sides of that comparison come from
+        // SwiftUI rather than one of them coming from the window's own bounds — those
+        // differ by the safe-area insets.
+        .onGeometryChange(for: CGSize.self) { proxy in
+            proxy.size
+        } action: { size in
+            frameStore.setContainerSize(size)
+        }
     }
 
     @ViewBuilder
@@ -31,7 +49,7 @@ struct NotiRootView: View {
                 // rather than an update to the existing view. That is what replays
                 // the transition and gives the incoming toast a fresh `dragOffset`,
                 // instead of inheriting the outgoing toast's drag state.
-                NotiSlotView(presentation: presentation, center: center)
+                NotiSlotView(presentation: presentation, center: center, frameStore: frameStore)
                     .id(presentation.token)
                     .transition(transition(for: edge))
             }
@@ -52,6 +70,7 @@ struct NotiRootView: View {
 struct NotiSlotView: View {
     let presentation: NotiPresentation
     let center: NotiCenter
+    let frameStore: NotiFrameStore
 
     /// How far the toast must be dragged toward its own edge to dismiss.
     private static let dismissThreshold: CGFloat = 40
@@ -85,10 +104,21 @@ struct NotiSlotView: View {
             //
             // `.global` already reflects the `.offset` below, so the absorbed rect
             // follows a live drag rather than sitting at the resting position.
-            .onGeometryChange(for: CGRect.self) { proxy in
-                proxy.frame(in: .global)
+            //
+            // The window's own size is measured alongside it, and for two reasons.
+            // It is what lets the window recognise a rect left over from a size it
+            // no longer has. It also forces this to re-report after a resize: the
+            // action only runs when the observed value changes, and a resize can
+            // leave a toast's global frame untouched — a top-anchored toast while
+            // the window grows downward — which would otherwise strand the rect at
+            // a size nobody will ever match again.
+            .onGeometryChange(for: NotiMeasuredFrame.self) { proxy in
+                NotiMeasuredFrame(
+                    rect: proxy.frame(in: .global),
+                    containerSize: proxy.bounds(of: .notiRoot)?.size ?? .zero
+                )
             } action: { frame in
-                center.setContentFrame(frame, forToken: presentation.token)
+                frameStore.set(frame, for: presentation.token)
             }
             .frame(maxWidth: 500)
             .padding(.horizontal, 16)
