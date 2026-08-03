@@ -7,6 +7,12 @@ struct DemoScreen: View {
     @State private var isSheetPresented = false
     @State private var syncToken: NotiToken?
 
+    /// Read from the center so the button reflects what is actually on screen.
+    private var isSyncing: Bool {
+        guard let syncToken else { return false }
+        return center.isPresented(syncToken)
+    }
+
     var body: some View {
         NavigationStack {
             List {
@@ -39,8 +45,13 @@ struct DemoScreen: View {
                 }
 
                 Section("Lifetime") {
-                    Button(syncToken == nil ? "Start indefinite toast" : "Stop indefinite toast") {
-                        if let token = syncToken {
+                    // The label asks the center rather than trusting the local token,
+                    // because this toast can leave without the button's help: tapped,
+                    // swiped, expired, or replaced by anything else presenting on the
+                    // top edge. Holding a token proves it was presented once, not that
+                    // it is still there.
+                    Button(isSyncing ? "Stop indefinite toast" : "Start indefinite toast") {
+                        if let token = syncToken, center.isPresented(token) {
                             center.dismiss(token)
                             syncToken = nil
                         } else {

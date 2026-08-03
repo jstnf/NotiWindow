@@ -74,6 +74,17 @@ let token = center.present(.top, duration: .indefinite) {
 center.dismiss(token)
 ```
 
+A token proves a toast was presented, not that it still is — it may have expired, been
+tapped or swiped away, or been replaced by something else on the same edge. Ask the center
+rather than assuming:
+
+```swift
+if center.isPresented(token) { … }   // or center.isPresented(.top)
+```
+
+Reading that inside a view body tracks it, so UI derived from it updates when the toast
+goes away, whatever made it go.
+
 Inside views, reach the center through the environment. The value is optional —
 an `EnvironmentValues` default has to be constructible from a nonisolated context,
 and `NotiCenter.init()` is main-actor isolated — but any view below a

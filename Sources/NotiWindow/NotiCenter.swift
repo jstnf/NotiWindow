@@ -75,6 +75,24 @@ public final class NotiCenter {
         return presentation.token
     }
 
+    /// Whether the presentation identified by `token` is still on screen.
+    ///
+    /// A toast can leave without its presenter's involvement — it can expire, be
+    /// tapped or swiped away, or be replaced by something else presenting on the same
+    /// edge. Callers holding a token have no other way to notice any of that, so
+    /// state derived from a token going stale is the common bug this answers.
+    ///
+    /// Reading this inside a SwiftUI view body tracks it: the view updates when the
+    /// toast goes away, whatever made it go.
+    public func isPresented(_ token: NotiToken) -> Bool {
+        slots.values.contains { $0.token == token }
+    }
+
+    /// Whether any toast currently occupies `edge`.
+    public func isPresented(_ edge: NotiEdge) -> Bool {
+        slots[edge] != nil
+    }
+
     /// Record where the toast identified by `token` has been laid out, in window
     /// coordinates.
     ///
