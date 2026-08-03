@@ -274,3 +274,69 @@ struct NotiRealLayoutTests {
         #expect(center.attachedWindowCount == 2)
     }
 }
+
+@Suite("NotiWindow scene resizing")
+@MainActor
+struct NotiWindowResizeTests {
+    private func activeScene() throws -> UIWindowScene {
+        try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+    }
+
+    /// A window created for a scene keeps the frame it was handed. UIKit resizes the
+    /// scene's own window, not extra ones an app installs alongside it, so without an
+    /// explicit sync the toast window stays whatever size it was born at.
+    @Test("The window re-syncs its frame to the scene it belongs to")
+    func windowSyncsItsFrameToTheScene() throws {
+        let scene = try activeScene()
+        let host = NotiWindowHost(scene: scene, center: NotiCenter())
+        defer { host.tearDown() }
+
+        // What a scene resize leaves behind: the scene is one size, the window another.
+        host.window.frame = CGRect(x: 0, y: 0, width: 200, height: 200)
+
+        host.syncFrameToScene()
+
+        #expect(host.window.frame == scene.coordinateSpace.bounds)
+    }
+
+    /// The symptom the sync exists to prevent: a bottom toast anchored to an edge the
+    /// window no longer has, which puts it partway up the screen instead of at the
+    /// bottom of it.
+    @Test("A bottom toast re-anchors to the window's bottom after a resize")
+    func bottomToastFollowsTheWindowsBottomEdge() throws {
+        let scene = try activeScene()
+        let center = NotiCenter()
+        let host = NotiWindowHost(scene: scene, center: center)
+        defer { host.tearDown() }
+
+        center.present(.bottom, duration: .indefinite) { Text("toast") }
+        host.window.layoutIfNeeded()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.5))
+        host.window.layoutIfNeeded()
+
+        let tallWindowRect = try #require(host.frameStore.liveFrames(for: center.liveTokens).first)
+
+        // Shrink the window as a scene resize would, then let the sync correct it back.
+        let shortened = host.window.frame.height - 300
+        host.window.frame = CGRect(
+            x: host.window.frame.minX,
+            y: host.window.frame.minY,
+            width: host.window.frame.width,
+            height: shortened
+        )
+        host.window.layoutIfNeeded()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.5))
+
+        let shortWindowRect = try #require(host.frameStore.liveFrames(for: center.liveTokens).first)
+        // The toast tracked the shorter window rather than staying where it was.
+        #expect(shortWindowRect.minY < tallWindowRect.minY - 200)
+
+        host.syncFrameToScene()
+        host.window.layoutIfNeeded()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.5))
+
+        let restored = try #require(host.frameStore.liveFrames(for: center.liveTokens).first)
+        // And back to the scene's own bottom edge once the frame is resynced.
+        #expect(abs(restored.minY - tallWindowRect.minY) < 1)
+    }
+}

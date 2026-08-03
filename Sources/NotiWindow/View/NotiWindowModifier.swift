@@ -15,8 +15,7 @@ public extension View {
     /// attached to — swapping which center this modifier is given does not move the
     /// hosted window to the new center; see `NotiWindowInstaller`.
     func notiWindow(_ center: NotiCenter) -> some View {
-        background(NotiWindowInstaller(center: center).frame(width: 0, height: 0))
-            .environment(\.notiCenter, center)
+        modifier(NotiWindowInstallerModifier(center: center))
     }
 
     /// Install a toast window with a center this modifier owns.
@@ -26,6 +25,31 @@ public extension View {
     /// `notiWindow(_:)` and hold the center themselves.
     func notiWindow() -> some View {
         modifier(OwnedNotiWindowModifier())
+    }
+}
+
+/// Installs the window, and keeps it the size of the scene it lives in.
+///
+/// The size is observed here, on the app's own content, because that is what reliably
+/// re-lays out when the scene resizes. The toast window is a second window in the same
+/// scene and UIKit does not resize it for us, so a change here is the signal to go and
+/// correct it — see `NotiWindowHost.syncFrameToScene`.
+private struct NotiWindowInstallerModifier: ViewModifier {
+    let center: NotiCenter
+
+    @State private var sceneSize: CGSize = .zero
+
+    func body(content: Content) -> some View {
+        content
+            // Zero-size so it can never become a touch target of its own: it exists
+            // only to resolve the scene and to carry `sceneSize` into `updateUIView`.
+            .background(NotiWindowInstaller(center: center, sceneSize: sceneSize).frame(width: 0, height: 0))
+            .environment(\.notiCenter, center)
+            .onGeometryChange(for: CGSize.self) { proxy in
+                proxy.size
+            } action: { size in
+                sceneSize = size
+            }
     }
 }
 
@@ -46,6 +70,10 @@ private struct OwnedNotiWindowModifier: ViewModifier {
 private struct NotiWindowInstaller: UIViewRepresentable {
     let center: NotiCenter
 
+    /// The app content's current size. Not read directly — it is here so that a scene
+    /// resize changes this view's inputs, which is what gets `updateUIView` called.
+    let sceneSize: CGSize
+
     func makeCoordinator() -> Coordinator {
         Coordinator()
     }
@@ -65,12 +93,16 @@ private struct NotiWindowInstaller: UIViewRepresentable {
         return view
     }
 
-    // Intentionally empty: `center` is captured once, at `makeUIView`, into the
-    // `host` this installs. Re-rendering `.notiWindow(_:)` with a different
-    // `NotiCenter` instance does not move the already-hosted window onto it — the
-    // center passed to this modifier must stay the same instance for the lifetime
-    // of the view it is attached to.
-    func updateUIView(_ uiView: InstallerView, context: Context) {}
+    /// Re-sizes the toast window to the scene, which is the only thing this does.
+    ///
+    /// `center` is deliberately *not* re-read: it is captured once, at `makeUIView`,
+    /// into the `host` this installs. Re-rendering `.notiWindow(_:)` with a different
+    /// `NotiCenter` instance does not move the already-hosted window onto it — the
+    /// center passed to this modifier must stay the same instance for the lifetime of
+    /// the view it is attached to.
+    func updateUIView(_ uiView: InstallerView, context: Context) {
+        context.coordinator.host?.syncFrameToScene()
+    }
 
     static func dismantleUIView(_ uiView: InstallerView, coordinator: Coordinator) {
         MainActor.assumeIsolated {

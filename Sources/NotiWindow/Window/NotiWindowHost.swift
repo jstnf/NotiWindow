@@ -39,6 +39,24 @@ final class NotiWindowHost {
         center.attach()
     }
 
+    /// Match the toast window to the size of the scene it belongs to.
+    ///
+    /// A window created for a scene keeps the frame it was handed at init. UIKit
+    /// resizes the scene's *own* window, not extra ones installed alongside it, so
+    /// nothing corrects this on our behalf when the scene resizes — dragging an iPad
+    /// window's corner, entering Split View, Stage Manager.
+    ///
+    /// Left alone the toast window stays whatever size it was born at, and its root
+    /// view lays out to those stale bounds: a bottom toast anchors to an edge the
+    /// window no longer has, and lands partway up the screen. The rects it reports go
+    /// stale the same way, so the window ends up absorbing touches over the wrong band
+    /// as well.
+    func syncFrameToScene() {
+        guard let bounds = window.windowScene?.coordinateSpace.bounds, window.frame != bounds else { return }
+
+        window.frame = bounds
+    }
+
     func tearDown() {
         window.isHidden = true
         window.rootViewController = nil
