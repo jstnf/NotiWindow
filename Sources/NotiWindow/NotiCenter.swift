@@ -1,4 +1,7 @@
+import os
 import SwiftUI
+
+private let log = Logger(subsystem: "NotiWindow", category: "NotiCenter")
 
 /// App-wide toast presentation.
 ///
@@ -21,6 +24,17 @@ public final class NotiCenter {
     /// each one re-checks that its own token still occupies the slot before
     /// dismissing, so a stale timer cannot cut short the toast that replaced it.
     @ObservationIgnored private var expiryTasks: [NotiEdge: Task<Void, Never>] = [:]
+
+    /// How many windows are currently rendering this center.
+    ///
+    /// A center may legitimately drive several scenes, so this is a count rather than
+    /// a flag. Presenting into a center with none attached renders nowhere, which is
+    /// almost always a missing `.notiWindow(_:)`.
+    @ObservationIgnored private(set) var attachedWindowCount = 0
+
+    /// Warned at most once per center, so a test suite that presents into detached
+    /// centers does not drown the log.
+    @ObservationIgnored private var hasWarnedAboutNoWindow = false
 
     /// Creates a center that sleeps on the cooperative pool for its expiry timing.
     public init() {
@@ -46,6 +60,16 @@ public final class NotiCenter {
         Set(slots.values.map(\.token))
     }
 
+    /// Called by a window host as it installs itself.
+    func attach() {
+        attachedWindowCount += 1
+    }
+
+    /// Called by a window host as it tears itself down.
+    func detach() {
+        attachedWindowCount = max(0, attachedWindowCount - 1)
+    }
+
     /// Expiry work scheduled for `edge`, if any. Test seam.
     func expiryTask(for edge: NotiEdge) -> Task<Void, Never>? {
         expiryTasks[edge]
@@ -63,6 +87,8 @@ public final class NotiCenter {
         dismissOnSwipe: Bool = true,
         @ViewBuilder content: () -> some View
     ) -> NotiToken {
+        warnIfNoWindowAttached()
+
         let presentation = NotiPresentation(
             token: NotiToken(),
             edge: edge,
@@ -128,6 +154,22 @@ public final class NotiCenter {
     private func clear(_ edge: NotiEdge) {
         slots[edge] = nil
         expiryTasks[edge] = nil
+    }
+
+    /// Surface the one misconfiguration a non-optional environment value can no longer
+    /// signal on its own: presenting into a center that nothing renders.
+    private func warnIfNoWindowAttached() {
+        #if DEBUG
+        guard attachedWindowCount == 0, !hasWarnedAboutNoWindow else { return }
+
+        hasWarnedAboutNoWindow = true
+        log.warning(
+            """
+            Presenting into a NotiCenter with no window attached — this toast will not \
+            appear. Attach one with .notiWindow(center) at your app root.
+            """
+        )
+        #endif
     }
 
     /// Schedule auto-dismiss for a fixed-duration presentation.

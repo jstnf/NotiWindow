@@ -168,14 +168,12 @@ private struct UndoToast: View {
 
 /// Presents through `@Environment(\.notiCenter)` rather than the explicitly-passed
 /// reference, exercising the environment path that `.notiWindow(_:)` installs.
-/// The value is optional because an `EnvironmentValues` default must be constructible
-/// from a nonisolated context, and `NotiCenter.init()` is main-actor isolated.
 private struct EnvironmentPresentButton: View {
     @Environment(\.notiCenter) private var environmentCenter
 
     var body: some View {
         Button("Present via @Environment") {
-            environmentCenter?.present(.bottom) {
+            environmentCenter.present(.bottom) {
                 NotiToast("Presented through the environment", systemImage: "leaf.fill", tint: .mint)
             }
         }

@@ -19,7 +19,10 @@ final class NotiWindowHost {
     /// scene driven by the same center gets a second, independent one.
     let frameStore = NotiFrameStore()
 
+    private let center: NotiCenter
+
     init(scene: UIWindowScene, center: NotiCenter) {
+        self.center = center
         let store = frameStore
         let controller = UIHostingController(rootView: NotiRootView(center: center, frameStore: store))
         controller.view.backgroundColor = .clear
@@ -33,10 +36,12 @@ final class NotiWindowHost {
         // Visible without ever becoming key, so the app keeps first responder and
         // text fields elsewhere are unaffected.
         window.isHidden = false
+        center.attach()
     }
 
     func tearDown() {
         window.isHidden = true
         window.rootViewController = nil
+        center.detach()
     }
 }

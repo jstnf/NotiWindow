@@ -245,4 +245,32 @@ struct NotiRealLayoutTests {
         #expect(first.window.hitTest(CGPoint(x: 200, y: 730), with: nil) != nil)
         #expect(first.window.hitTest(CGPoint(x: 200, y: 330), with: nil) == nil)
     }
+
+    @Test("A center with no window attached reports none")
+    func centerStartsUnattached() {
+        #expect(NotiCenter().attachedWindowCount == 0)
+    }
+
+    @Test("A host attaches on init and detaches on teardown")
+    func hostAttachesAndDetaches() throws {
+        let center = NotiCenter()
+        let host = NotiWindowHost(scene: try activeScene(), center: center)
+
+        #expect(center.attachedWindowCount == 1)
+
+        host.tearDown()
+
+        #expect(center.attachedWindowCount == 0)
+    }
+
+    @Test("Two hosts sharing a center report two attachments")
+    func twoHostsReportTwoAttachments() throws {
+        let center = NotiCenter()
+        let first = NotiWindowHost(scene: try activeScene(), center: center)
+        defer { first.tearDown() }
+        let second = NotiWindowHost(scene: try activeScene(), center: center)
+        defer { second.tearDown() }
+
+        #expect(center.attachedWindowCount == 2)
+    }
 }
