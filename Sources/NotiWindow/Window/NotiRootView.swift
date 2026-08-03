@@ -60,6 +60,19 @@ struct NotiSlotView: View {
 
     var body: some View {
         presentation.content
+            // Makes the whole toast tappable, not just the parts of it that draw
+            // something. SwiftUI does not hit-test empty stack space, and a
+            // background style adds no hit region of its own — so a toast whose
+            // content ends in a `Spacer` to fill the width (which `NotiToast` does)
+            // only receives touches over its text and symbol.
+            //
+            // Without this the window still absorbs the full measured rect while
+            // SwiftUI delivers nothing, so the empty part of every toast is dead: it
+            // will not dismiss, and it will not fall through to the app either.
+            // Applied here, to the same view the frame is measured from, so the
+            // region that can be interacted with is exactly the region the window
+            // absorbs.
+            .contentShape(Rectangle())
             // The window absorbs touches by frame, so the toast has to say where it
             // landed. Nothing else in this window knows: SwiftUI draws the toast
             // inside the hosting view rather than in a `UIView` the window could
