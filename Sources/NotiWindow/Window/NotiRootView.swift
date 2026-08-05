@@ -122,7 +122,18 @@ struct NotiSlotView: View {
             }
             .frame(maxWidth: 500)
             .padding(.horizontal, 16)
-            .padding(presentation.edge == .top ? .top : .bottom, 8)
+            // Outside the measurement above, which is what makes the inset safe to
+            // raise: the toast is laid out further from its edge, so the rect it
+            // reports moves with it, and the space the inset opens up belongs to the
+            // app rather than being absorbed over a toast that is not there.
+            //
+            // A caller cannot do this for itself from inside `presentation.content`.
+            // `.offset` and every other render-only transform moves what SwiftUI
+            // draws without moving the frame it reports to whoever measures it, so a
+            // toast positioned that way ends up drawn clear of the rect this window
+            // absorbs — untappable, and absorbing an empty band at its resting
+            // position for as long as it is up.
+            .padding(presentation.edge == .top ? .top : .bottom, presentation.edgeInset)
             .offset(y: dragOffset)
             .onTapGesture {
                 guard presentation.dismissOnTap else { return }

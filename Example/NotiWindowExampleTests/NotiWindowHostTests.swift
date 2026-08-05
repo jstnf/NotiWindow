@@ -180,6 +180,48 @@ struct NotiRealLayoutTests {
         #expect(rect.minX >= 0)
     }
 
+    /// Both halves of lifting a toast clear of chrome it would otherwise sit over: it
+    /// is hit-tested where it draws, and the space it left behind still belongs to the
+    /// app.
+    ///
+    /// The failure this rules out is silent and total. Positioning a toast from inside
+    /// its own content — `.offset` and every other render-only transform — moves what
+    /// is drawn without moving the frame the content reports, so the window keeps
+    /// absorbing the resting position: every tap on the toast falls through to the app,
+    /// and every tap on the chrome underneath is swallowed instead. `edgeInset` is
+    /// applied outside that measurement, so the absorbed rect travels with the toast.
+    @Test("A toast inset from its edge is hit-tested where it draws")
+    func insetToastIsHitTestedWhereItDraws() throws {
+        let center = NotiCenter()
+        let host = NotiWindowHost(scene: try activeScene(), center: center)
+        defer { host.tearDown() }
+        let lift: CGFloat = 100
+
+        center.present(.bottom, duration: .indefinite) { Text("toast").padding() }
+        settle(host)
+        let resting = try #require(host.frameStore.liveFrames(for: center.liveTokens).first)
+
+        center.present(.bottom, duration: .indefinite, edgeInset: 8 + lift) { Text("toast").padding() }
+        settle(host)
+        let lifted = try #require(host.frameStore.liveFrames(for: center.liveTokens).first)
+
+        // The inset moved the toast, rather than growing it into the space below.
+        #expect(abs(lifted.minY - (resting.minY - lift)) < 1)
+        #expect(lifted.size == resting.size)
+
+        #expect(host.window.hitTest(CGPoint(x: lifted.midX, y: lifted.midY), with: nil) != nil)
+        #expect(host.window.hitTest(CGPoint(x: resting.midX, y: resting.midY), with: nil) == nil)
+    }
+
+    /// Lets SwiftUI lay out and report, which takes a run of the main loop rather than
+    /// a layout pass alone: the frames arrive from `onGeometryChange`, an action that
+    /// runs after the layout it observed.
+    private func settle(_ host: NotiWindowHost) {
+        host.window.layoutIfNeeded()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.5))
+        host.window.layoutIfNeeded()
+    }
+
     /// The core behavior this whole branch delivers: a window mid-resize hands
     /// touches back to the app rather than absorbing them over geometry that no
     /// longer exists.

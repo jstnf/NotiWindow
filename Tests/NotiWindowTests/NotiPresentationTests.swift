@@ -30,7 +30,8 @@ struct NotiPresentationTests {
             content: AnyView(Text("hello")),
             duration: .indefinite,
             dismissOnTap: false,
-            dismissOnSwipe: true
+            dismissOnSwipe: true,
+            edgeInset: 8
         )
 
         #expect(presentation.token == token)
@@ -38,5 +39,6 @@ struct NotiPresentationTests {
         #expect(presentation.duration == .indefinite)
         #expect(presentation.dismissOnTap == false)
         #expect(presentation.dismissOnSwipe == true)
+        #expect(presentation.edgeInset == 8)
     }
 }
