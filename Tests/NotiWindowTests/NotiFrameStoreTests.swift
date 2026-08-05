@@ -62,6 +62,17 @@ struct NotiFrameStoreTests {
         #expect(store.liveFrames(for: [token]).isEmpty)
     }
 
+    @Test("A frame measured a sub-point epsilon off the container size is still reported")
+    func subToleranceEpsilonIsReported() {
+        let store = makeStore()
+        let token = NotiToken()
+        // What two SwiftUI geometry proxies can disagree by in the same layout pass
+        // when a toast's content overflows the width it was offered.
+        store.set(measured(rect, in: CGSize(width: 402.00000000000006, height: 874)), for: token)
+
+        #expect(store.liveFrames(for: [token]) == [rect])
+    }
+
     @Test("An outgoing toast cannot overwrite its replacement's frame")
     func outgoingToastDoesNotOverwriteIncoming() {
         let store = makeStore()
