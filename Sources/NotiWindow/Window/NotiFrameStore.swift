@@ -54,7 +54,18 @@ final class NotiFrameStore {
         frames = frames.filter { liveTokens.contains($0.key) }
 
         return frames.values.compactMap { frame in
-            frame.containerSize == containerSize ? frame.rect : nil
+            Self.sizesMatch(frame.containerSize, containerSize) ? frame.rect : nil
         }
+    }
+
+    /// Two container sizes agree if they describe the same layout.
+    ///
+    /// Exact equality is wrong here: the two sides are measured by different
+    /// geometry proxies in the same layout pass, and SwiftUI can hand back values
+    /// that differ in the last representable digit. That difference is invisible
+    /// on screen and fatal to this comparison — every rect reads as stale, the
+    /// window absorbs nothing, and every toast becomes untappable.
+    static func sizesMatch(_ lhs: CGSize, _ rhs: CGSize) -> Bool {
+        abs(lhs.width - rhs.width) < 0.5 && abs(lhs.height - rhs.height) < 0.5
     }
 }
