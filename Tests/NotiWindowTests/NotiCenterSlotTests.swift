@@ -74,6 +74,22 @@ struct NotiCenterSlotTests {
         #expect(center.presentation(for: .bottom)?.token == token)
     }
 
+    @Test("A toast sits close to its own edge by default")
+    func edgeInsetDefaultsToTheStandardGap() {
+        let (center, _) = makeCenter()
+        center.present(.bottom) { Text("hello") }
+
+        #expect(center.presentation(for: .bottom)?.edgeInset == 8)
+    }
+
+    @Test("A requested edge inset reaches the presentation")
+    func requestedEdgeInsetIsCarried() {
+        let (center, _) = makeCenter()
+        center.present(.bottom, edgeInset: 108) { Text("hello") }
+
+        #expect(center.presentation(for: .bottom)?.edgeInset == 108)
+    }
+
     @Test("Presenting on the same edge replaces the current occupant")
     func sameEdgePresentReplaces() {
         let (center, _) = makeCenter()

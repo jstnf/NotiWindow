@@ -26,4 +26,11 @@ struct NotiPresentation {
     let duration: NotiDuration
     let dismissOnTap: Bool
     let dismissOnSwipe: Bool
+
+    /// The gap between the toast and the edge it is anchored to.
+    ///
+    /// Applied outside the frame the window absorbs touches against, so a toast lifted
+    /// clear of some chrome takes its absorbed rect with it, and the space it opens up
+    /// keeps passing through. See `NotiSlotView.body`.
+    let edgeInset: CGFloat
 }

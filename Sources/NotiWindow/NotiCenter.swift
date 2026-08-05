@@ -79,12 +79,23 @@ public final class NotiCenter {
     ///
     /// The returned token identifies this presentation for later dismissal, which
     /// matters most for `.indefinite` toasts that never dismiss themselves.
+    ///
+    /// `edgeInset` is the gap between the toast and its own edge — raise it to clear a
+    /// floating tab bar, or whatever other chrome the toast would otherwise sit over.
+    /// It is also the only way to move a toast that keeps the toast working: the
+    /// window absorbs touches over the frame `content` lays out at, and a render-only
+    /// transform inside that content — `.offset`, `.scaleEffect`, any `GeometryEffect`
+    /// — moves what is drawn without moving that frame. A toast positioned that way
+    /// draws where nothing is absorbed and absorbs where nothing is drawn: taps on its
+    /// own buttons fall through to the app, while taps on the chrome it was lifted
+    /// clear of are swallowed for as long as it is up.
     @discardableResult
     public func present(
         _ edge: NotiEdge = .bottom,
         duration: NotiDuration = .standard,
         dismissOnTap: Bool = true,
         dismissOnSwipe: Bool = true,
+        edgeInset: CGFloat = 8,
         @ViewBuilder content: () -> some View
     ) -> NotiToken {
         warnIfNoWindowAttached()
@@ -95,7 +106,8 @@ public final class NotiCenter {
             content: AnyView(content()),
             duration: duration,
             dismissOnTap: dismissOnTap,
-            dismissOnSwipe: dismissOnSwipe
+            dismissOnSwipe: dismissOnSwipe,
+            edgeInset: edgeInset
         )
         slots[edge] = presentation
         scheduleExpiry(for: presentation)

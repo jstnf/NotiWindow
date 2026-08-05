@@ -45,6 +45,15 @@ struct DemoScreen: View {
                         center.present(.bottom) { NotiToast("First") }
                         center.present(.bottom) { NotiToast("Second replaced it") }
                     }
+
+                    // Tap the toast where it draws: an inset toast is interactive at
+                    // its lifted position, and the band it left behind still scrolls
+                    // the list underneath.
+                    Button("Inset from the bottom edge") {
+                        center.present(.bottom, duration: .seconds(30), edgeInset: 108) {
+                            NotiToast("Lifted clear of the bottom", systemImage: "arrow.up.to.line", tint: .teal)
+                        }
+                    }
                 }
 
                 // Raising the keyboard shrinks the safe area, and with it the toast

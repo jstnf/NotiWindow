@@ -64,6 +64,22 @@ center.present(.top, duration: .seconds(5)) {
 }
 ```
 
+Toasts sit close to their own edge. `edgeInset:` moves one further in, to clear a
+floating tab bar or whatever else it would otherwise sit over:
+
+```swift
+center.present(.bottom, edgeInset: 108) {
+    NotiToast("Removed", systemImage: "trash")
+}
+```
+
+Position toasts this way rather than by offsetting the view you hand in. Touches are
+absorbed over the frame that view lays out at, and `.offset` — like any render-only
+transform — moves what is drawn without moving that frame, so the toast ends up drawn
+outside the region that answers taps: its own buttons stop working, and the chrome it
+was lifted clear of stops receiving taps for as long as the toast is up. `edgeInset` is
+applied outside the measurement, so the two travel together.
+
 Indefinite toasts dismiss by token:
 
 ```swift
