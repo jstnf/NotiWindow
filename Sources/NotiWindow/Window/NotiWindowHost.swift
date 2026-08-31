@@ -21,10 +21,17 @@ final class NotiWindowHost {
 
     private let center: NotiCenter
 
-    init(scene: UIWindowScene, center: NotiCenter) {
+    /// `clearance` is handed in rather than made here, unlike the frame store beside
+    /// it. The app publishes into it through the environment, which has to hold it
+    /// from the first render — before this host exists at all. It is still one store
+    /// per window; the modifier that installs this owns it. See
+    /// `NotiWindowInstallerModifier`.
+    init(scene: UIWindowScene, center: NotiCenter, clearance: NotiClearance) {
         self.center = center
         let store = frameStore
-        let controller = UIHostingController(rootView: NotiRootView(center: center, frameStore: store))
+        let controller = UIHostingController(
+            rootView: NotiRootView(center: center, frameStore: store, clearance: clearance)
+        )
         controller.view.backgroundColor = .clear
 
         window = PassthroughWindow(windowScene: scene, frameStore: store)

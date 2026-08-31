@@ -11,6 +11,12 @@ public extension View {
     /// gets its own window and none leak. One center may drive several scenes at
     /// once: each window keeps its own record of where its toasts are.
     ///
+    /// This is also what scopes `.notiClearance(_:)`. The chrome a view publishes goes
+    /// to the window installed here, so a `.notiClearance(_:)` must be *below* this
+    /// modifier to reach anything — one attached above it publishes into a default
+    /// nothing renders from, and its toasts sit at their own edge as though it were
+    /// not there.
+    ///
     /// `center` must stay the same instance for the lifetime of the view it is
     /// attached to — swapping which center this modifier is given does not move the
     /// hosted window to the new center; see `NotiWindowInstaller`.
@@ -39,12 +45,25 @@ private struct NotiWindowInstallerModifier: ViewModifier {
 
     @State private var sceneSize: CGSize = .zero
 
+    /// This window's clearance store — where `.notiClearance(_:)` publishes the app's
+    /// chrome to. One per installed window, like the frame store, because chrome
+    /// measured in one scene means nothing in another.
+    ///
+    /// Owned here rather than by `NotiWindowHost` because it has to be in the
+    /// environment from the first render, and the host is not created until the
+    /// installer reaches a window.
+    @State private var clearance = NotiClearance()
+
     func body(content: Content) -> some View {
         content
             // Zero-size so it can never become a touch target of its own: it exists
             // only to resolve the scene and to carry `sceneSize` into `updateUIView`.
-            .background(NotiWindowInstaller(center: center, sceneSize: sceneSize).frame(width: 0, height: 0))
+            .background(
+                NotiWindowInstaller(center: center, clearance: clearance, sceneSize: sceneSize)
+                    .frame(width: 0, height: 0)
+            )
             .environment(\.notiCenter, center)
+            .environment(\.notiClearance, clearance)
             .onGeometryChange(for: CGSize.self) { proxy in
                 proxy.size
             } action: { size in
@@ -70,6 +89,10 @@ private struct OwnedNotiWindowModifier: ViewModifier {
 private struct NotiWindowInstaller: UIViewRepresentable {
     let center: NotiCenter
 
+    /// Handed to the window this installs, so the root view reads the same store the
+    /// app's `.notiClearance(_:)` modifiers publish into.
+    let clearance: NotiClearance
+
     /// The app content's current size. Not read directly — it is here so that a scene
     /// resize changes this view's inputs, which is what gets `updateUIView` called.
     let sceneSize: CGSize
@@ -82,12 +105,13 @@ private struct NotiWindowInstaller: UIViewRepresentable {
         let view = InstallerView()
         let coordinator = context.coordinator
         let center = center
+        let clearance = clearance
 
         // `didMoveToWindow` is the reliable signal — `updateUIView` is not guaranteed
         // to fire again once the view reaches a window.
         view.onMoveToWindow = { scene in
             guard coordinator.host == nil, let scene else { return }
-            coordinator.host = NotiWindowHost(scene: scene, center: center)
+            coordinator.host = NotiWindowHost(scene: scene, center: center, clearance: clearance)
         }
 
         return view

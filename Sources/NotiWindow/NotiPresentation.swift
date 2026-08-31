@@ -29,6 +29,12 @@ struct NotiPresentation {
 
     /// The gap between the toast and the edge it is anchored to.
     ///
+    /// Not the whole distance it ends up from that edge: any clearance the app
+    /// published for this edge is added at layout time, so this is the gap above the
+    /// chrome rather than above the screen. Resolved there rather than here so a toast
+    /// already on screen follows chrome that appears or changes height under it — see
+    /// `NotiSlotView.resolvedInset`.
+    ///
     /// Applied outside the frame the window absorbs touches against, so a toast lifted
     /// clear of some chrome takes its absorbed rect with it, and the space it opens up
     /// keeps passing through. See `NotiSlotView.body`.

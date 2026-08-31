@@ -12,7 +12,9 @@ private let log = Logger(subsystem: "NotiWindow", category: "NotiCenter")
 /// The center owns state and timing. A `.notiWindow(center)` modifier renders
 /// whatever the center currently holds, which is why a toast presented before the
 /// window installs is not lost. Where each live toast actually is on screen is a
-/// window's own business, not the center's — see `NotiFrameStore`.
+/// window's own business, not the center's: what it is measured at lives in that
+/// window's `NotiFrameStore`, and how far it sits from its edge in that window's
+/// `NotiClearance`.
 @MainActor
 @Observable
 public final class NotiCenter {
@@ -80,8 +82,13 @@ public final class NotiCenter {
     /// The returned token identifies this presentation for later dismissal, which
     /// matters most for `.indefinite` toasts that never dismiss themselves.
     ///
-    /// `edgeInset` is the gap between the toast and its own edge — raise it to clear a
-    /// floating tab bar, or whatever other chrome the toast would otherwise sit over.
+    /// `edgeInset` is the gap between the toast and its own edge. Where that edge is
+    /// depends on what the app published with `.notiClearance(_:)`: with a tab bar
+    /// published, the toast rests this far above the bar rather than above the screen,
+    /// and the two add up. Chrome the app cannot publish — an iPad tab bar, anything
+    /// SwiftUI draws without inseting a safe area — is what raising this by hand is
+    /// still for.
+    ///
     /// It is also the only way to move a toast that keeps the toast working: the
     /// window absorbs touches over the frame `content` lays out at, and a render-only
     /// transform inside that content — `.offset`, `.scaleEffect`, any `GeometryEffect`

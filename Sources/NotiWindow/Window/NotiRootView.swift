@@ -12,8 +12,20 @@ extension NamedCoordinateSpace {
 struct NotiRootView: View {
     let center: NotiCenter
     let frameStore: NotiFrameStore
+    let clearance: NotiClearance
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// This window's own safe-area insets.
+    ///
+    /// The part of the app's published clearance that this window already provides for
+    /// itself, and so the part that has to come back off again before a toast is
+    /// lifted — an iPhone tab bar publishes 83pt of which 34 is the home indicator
+    /// this window is already clear of. Measured here rather than read from
+    /// `window.safeAreaInsets` so that both sides of that subtraction come from the
+    /// same SwiftUI layout, which is the same reason the container size is measured
+    /// here.
+    @State private var windowInsets = EdgeInsets()
 
     var body: some View {
         ZStack {
@@ -33,6 +45,13 @@ struct NotiRootView: View {
         } action: { size in
             frameStore.setContainerSize(size)
         }
+        // Read from the same proxy as the size above, so a resize that changes both —
+        // the keyboard coming up, entering Split View — settles them together.
+        .onGeometryChange(for: EdgeInsets.self) { proxy in
+            proxy.safeAreaInsets
+        } action: { insets in
+            windowInsets = insets
+        }
     }
 
     @ViewBuilder
@@ -49,9 +68,15 @@ struct NotiRootView: View {
                 // rather than an update to the existing view. That is what replays
                 // the transition and gives the incoming toast a fresh `dragOffset`,
                 // instead of inheriting the outgoing toast's drag state.
-                NotiSlotView(presentation: presentation, center: center, frameStore: frameStore)
-                    .id(presentation.token)
-                    .transition(transition(for: edge))
+                NotiSlotView(
+                    presentation: presentation,
+                    center: center,
+                    frameStore: frameStore,
+                    clearance: clearance,
+                    windowInset: edge == .top ? windowInsets.top : windowInsets.bottom
+                )
+                .id(presentation.token)
+                .transition(transition(for: edge))
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -71,6 +96,10 @@ struct NotiSlotView: View {
     let presentation: NotiPresentation
     let center: NotiCenter
     let frameStore: NotiFrameStore
+    let clearance: NotiClearance
+
+    /// The toast window's own safe-area inset on this toast's edge.
+    let windowInset: CGFloat
 
     /// How far the toast must be dragged toward its own edge to dismiss.
     private static let dismissThreshold: CGFloat = 40
@@ -133,13 +162,27 @@ struct NotiSlotView: View {
             // toast positioned that way ends up drawn clear of the rect this window
             // absorbs — untappable, and absorbing an empty band at its resting
             // position for as long as it is up.
-            .padding(presentation.edge == .top ? .top : .bottom, presentation.edgeInset)
+            //
+            // The app's own chrome is folded in here rather than at presentation time,
+            // so a toast already on screen when a tab bar appears or changes height
+            // moves with it instead of keeping the inset it was born with.
+            .padding(presentation.edge == .top ? .top : .bottom, resolvedInset)
             .offset(y: dragOffset)
             .onTapGesture {
                 guard presentation.dismissOnTap else { return }
                 center.dismiss(presentation.token)
             }
             .gesture(dragGesture)
+    }
+
+    /// How far from its edge this toast is laid out: the clearance the app published
+    /// for that edge, plus the gap the toast was presented with.
+    private var resolvedInset: CGFloat {
+        clearance.inset(
+            for: presentation.edge,
+            edgeInset: presentation.edgeInset,
+            windowInset: windowInset
+        )
     }
 
     /// Drags toward the toast's own edge track the finger; drags away are ignored.

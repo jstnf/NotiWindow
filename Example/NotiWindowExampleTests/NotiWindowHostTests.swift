@@ -22,7 +22,7 @@ struct NotiWindowHostTests {
 
     @Test("The window sits above sheets")
     func windowSitsAboveAlerts() throws {
-        let host = NotiWindowHost(scene: try activeScene(), center: NotiCenter())
+        let host = NotiWindowHost(scene: try activeScene(), center: NotiCenter(), clearance: NotiClearance())
         defer { host.tearDown() }
 
         #expect(host.window.windowLevel == .alert + 1)
@@ -30,7 +30,7 @@ struct NotiWindowHostTests {
 
     @Test("The window never becomes key")
     func windowNeverBecomesKey() throws {
-        let host = NotiWindowHost(scene: try activeScene(), center: NotiCenter())
+        let host = NotiWindowHost(scene: try activeScene(), center: NotiCenter(), clearance: NotiClearance())
         defer { host.tearDown() }
 
         #expect(host.window.isKeyWindow == false)
@@ -38,7 +38,7 @@ struct NotiWindowHostTests {
 
     @Test("The window is visible")
     func windowIsVisible() throws {
-        let host = NotiWindowHost(scene: try activeScene(), center: NotiCenter())
+        let host = NotiWindowHost(scene: try activeScene(), center: NotiCenter(), clearance: NotiClearance())
         defer { host.tearDown() }
 
         #expect(host.window.isHidden == false)
@@ -46,7 +46,7 @@ struct NotiWindowHostTests {
 
     @Test("Window and root view backgrounds are clear")
     func backgroundsAreClear() throws {
-        let host = NotiWindowHost(scene: try activeScene(), center: NotiCenter())
+        let host = NotiWindowHost(scene: try activeScene(), center: NotiCenter(), clearance: NotiClearance())
         defer { host.tearDown() }
 
         #expect(host.window.backgroundColor == .clear)
@@ -55,7 +55,7 @@ struct NotiWindowHostTests {
 
     @Test("Tearing down hides the window and releases its content")
     func tearDownHidesWindow() throws {
-        let host = NotiWindowHost(scene: try activeScene(), center: NotiCenter())
+        let host = NotiWindowHost(scene: try activeScene(), center: NotiCenter(), clearance: NotiClearance())
 
         host.tearDown()
 
@@ -66,7 +66,7 @@ struct NotiWindowHostTests {
     @Test("A touch where no toast is falls through to the app")
     func touchOutsideEveryToastFallsThrough() throws {
         let center = NotiCenter()
-        let host = NotiWindowHost(scene: try activeScene(), center: center)
+        let host = NotiWindowHost(scene: try activeScene(), center: center, clearance: NotiClearance())
         defer { host.tearDown() }
         let bounds = host.window.bounds
         let token = center.present(.bottom, duration: .indefinite) { Text("toast") }
@@ -89,7 +89,7 @@ struct NotiWindowHostTests {
     @Test("A touch on a toast is absorbed rather than passed through")
     func touchOnAToastIsAbsorbed() throws {
         let center = NotiCenter()
-        let host = NotiWindowHost(scene: try activeScene(), center: center)
+        let host = NotiWindowHost(scene: try activeScene(), center: center, clearance: NotiClearance())
         defer { host.tearDown() }
         let bounds = host.window.bounds
         let token = center.present(.bottom, duration: .indefinite) { Text("toast") }
@@ -108,7 +108,7 @@ struct NotiWindowHostTests {
 
     @Test("With nothing on screen the window absorbs nothing")
     func emptyWindowAbsorbsNothing() throws {
-        let host = NotiWindowHost(scene: try activeScene(), center: NotiCenter())
+        let host = NotiWindowHost(scene: try activeScene(), center: NotiCenter(), clearance: NotiClearance())
         defer { host.tearDown() }
         let bounds = host.window.bounds
 
@@ -118,7 +118,7 @@ struct NotiWindowHostTests {
     @Test("Teardown leaves live toasts in the center untouched")
     func tearDownPreservesCenterState() throws {
         let center = NotiCenter()
-        let host = NotiWindowHost(scene: try activeScene(), center: center)
+        let host = NotiWindowHost(scene: try activeScene(), center: center, clearance: NotiClearance())
         let token = center.present(.top, duration: .indefinite) { Text("live") }
 
         host.tearDown()
@@ -145,7 +145,7 @@ struct NotiRealLayoutTests {
     @Test("A toast laid out by SwiftUI absorbs a touch on itself")
     func swiftUILaidOutToastAbsorbsItsOwnTouch() throws {
         let center = NotiCenter()
-        let host = NotiWindowHost(scene: try activeScene(), center: center)
+        let host = NotiWindowHost(scene: try activeScene(), center: center, clearance: NotiClearance())
         defer { host.tearDown() }
 
         center.present(.bottom, duration: .indefinite) { Text("toast") }
@@ -164,7 +164,7 @@ struct NotiRealLayoutTests {
     @Test("A toast never spills past its container's width")
     func toastFitsItsContainer() throws {
         let center = NotiCenter()
-        let host = NotiWindowHost(scene: try activeScene(), center: center)
+        let host = NotiWindowHost(scene: try activeScene(), center: center, clearance: NotiClearance())
         defer { host.tearDown() }
 
         center.present(.bottom, duration: .indefinite) {
@@ -193,7 +193,7 @@ struct NotiRealLayoutTests {
     @Test("A toast inset from its edge is hit-tested where it draws")
     func insetToastIsHitTestedWhereItDraws() throws {
         let center = NotiCenter()
-        let host = NotiWindowHost(scene: try activeScene(), center: center)
+        let host = NotiWindowHost(scene: try activeScene(), center: center, clearance: NotiClearance())
         defer { host.tearDown() }
         let lift: CGFloat = 100
 
@@ -232,7 +232,7 @@ struct NotiRealLayoutTests {
     @Test("A stale container size makes the window pass touches through")
     func staleContainerSizeMakesTheWindowPassTouchesThrough() throws {
         let center = NotiCenter()
-        let host = NotiWindowHost(scene: try activeScene(), center: center)
+        let host = NotiWindowHost(scene: try activeScene(), center: center, clearance: NotiClearance())
         defer { host.tearDown() }
         let bounds = host.window.bounds
         let token = center.present(.bottom, duration: .indefinite) { Text("toast") }
@@ -262,9 +262,9 @@ struct NotiRealLayoutTests {
         // window — which is what the old center-owned storage got wrong, and why
         // sharing a center across scenes used to be unsupported.
         let center = NotiCenter()
-        let first = NotiWindowHost(scene: try activeScene(), center: center)
+        let first = NotiWindowHost(scene: try activeScene(), center: center, clearance: NotiClearance())
         defer { first.tearDown() }
-        let second = NotiWindowHost(scene: try activeScene(), center: center)
+        let second = NotiWindowHost(scene: try activeScene(), center: center, clearance: NotiClearance())
         defer { second.tearDown() }
 
         let token = center.present(.bottom, duration: .indefinite) { Text("toast") }
@@ -296,7 +296,7 @@ struct NotiRealLayoutTests {
     @Test("A host attaches on init and detaches on teardown")
     func hostAttachesAndDetaches() throws {
         let center = NotiCenter()
-        let host = NotiWindowHost(scene: try activeScene(), center: center)
+        let host = NotiWindowHost(scene: try activeScene(), center: center, clearance: NotiClearance())
 
         #expect(center.attachedWindowCount == 1)
 
@@ -308,9 +308,9 @@ struct NotiRealLayoutTests {
     @Test("Two hosts sharing a center report two attachments")
     func twoHostsReportTwoAttachments() throws {
         let center = NotiCenter()
-        let first = NotiWindowHost(scene: try activeScene(), center: center)
+        let first = NotiWindowHost(scene: try activeScene(), center: center, clearance: NotiClearance())
         defer { first.tearDown() }
-        let second = NotiWindowHost(scene: try activeScene(), center: center)
+        let second = NotiWindowHost(scene: try activeScene(), center: center, clearance: NotiClearance())
         defer { second.tearDown() }
 
         #expect(center.attachedWindowCount == 2)
@@ -330,7 +330,7 @@ struct NotiWindowResizeTests {
     @Test("The window re-syncs its frame to the scene it belongs to")
     func windowSyncsItsFrameToTheScene() throws {
         let scene = try activeScene()
-        let host = NotiWindowHost(scene: scene, center: NotiCenter())
+        let host = NotiWindowHost(scene: scene, center: NotiCenter(), clearance: NotiClearance())
         defer { host.tearDown() }
 
         // What a scene resize leaves behind: the scene is one size, the window another.
@@ -348,7 +348,7 @@ struct NotiWindowResizeTests {
     func bottomToastFollowsTheWindowsBottomEdge() throws {
         let scene = try activeScene()
         let center = NotiCenter()
-        let host = NotiWindowHost(scene: scene, center: center)
+        let host = NotiWindowHost(scene: scene, center: center, clearance: NotiClearance())
         defer { host.tearDown() }
 
         center.present(.bottom, duration: .indefinite) { Text("toast") }
